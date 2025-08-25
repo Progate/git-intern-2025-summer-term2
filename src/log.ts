@@ -1,9 +1,16 @@
 import { readFileSync } from "fs";
 import { inflateSync } from "zlib";
 
+/**
+ * .git ディレクトリ関連のパス定数
+ */
 const GIT_OBJECTS_DIR = ".git/objects/";
 const GIT_HEAD_FILE = ".git/HEAD";
+const GIT_REF_PREFIX = ".git/";
 
+/**
+ * Gitのコミットオブジェクトを表現し、各属性を抽出するクラス
+ */
 class CommitObject {
   hash: string;
   parent?: string;
@@ -11,6 +18,11 @@ class CommitObject {
   date: string;
   message: string;
 
+  /**
+   * コンストラクタ
+   * @param content コミットオブジェクトの内容
+   * @param hash コミットハッシュ
+   */
   constructor(content: string, hash: string) {
     this.hash = hash;
     const lines = content.split("\n");
@@ -23,6 +35,8 @@ class CommitObject {
 
   /**
    * parent の抽出
+   * @param lines コミットオブジェクトの各行
+   * @returns 親コミットのハッシュ（存在しない場合はundefined）
    */
   private parseParent(lines: string[]): string | undefined {
     return lines[1]?.startsWith("parent ")
@@ -32,6 +46,8 @@ class CommitObject {
 
   /**
    * author の抽出
+   * @param lines コミットオブジェクトの各行
+   * @returns 著者名
    */
   private parseAuthor(lines: string[]): string {
     const authorLine = lines.find((line) => line.startsWith("author ")) || "";
@@ -41,6 +57,8 @@ class CommitObject {
 
   /**
    * date の抽出・フォーマット
+   * @param lines コミットオブジェクトの各行
+   * @returns 日付文字列
    */
   private parseDate(lines: string[]): string {
     const authorLine = lines.find((line) => line.startsWith("author ")) || "";
@@ -56,6 +74,8 @@ class CommitObject {
 
   /**
    * message の抽出
+   * @param lines コミットオブジェクトの各行
+   * @returns コミットメッセージ
    */
   private parseMessage(lines: string[]): string {
     const emptyLineIndex = lines.findIndex((line) => line === "");
@@ -67,6 +87,10 @@ class CommitObject {
       : "";
   }
 
+  /**
+   * git log形式の文字列に変換
+   * @returns フォーマット済み文字列
+   */
   toLogString(): string {
     return [
       `commit ${this.hash}`,
@@ -78,6 +102,9 @@ class CommitObject {
   }
 }
 
+/**
+ * git logの出力生成を担うクラス
+ */
 class MyGitLog {
   /**
    * コミットオブジェクトの内容を取得する
@@ -106,7 +133,7 @@ class MyGitLog {
     const ref = headContent.replace("ref: ", "");
 
     try {
-      return readFileSync(`.git/${ref}`, "utf8").trim();
+      return readFileSync(`${GIT_REF_PREFIX}${ref}`, "utf8").trim();
     } catch (error: unknown) {
       if (error instanceof Error && (error as any).code === "ENOENT") {
         const branchName = ref.split("/").pop() || ref;
@@ -146,6 +173,10 @@ class MyGitLog {
   }
 }
 
+/**
+ * git logコマンドの出力を返す関数
+ * @returns フォーマット済みのlog文字列
+ */
 export const log = (): string => {
   const myGitLog = new MyGitLog();
   return myGitLog.generate();
