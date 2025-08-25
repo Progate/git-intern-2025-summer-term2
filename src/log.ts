@@ -1,6 +1,9 @@
 import { readFileSync } from "fs";
 import { inflateSync } from "zlib";
 
+const GIT_OBJECTS_DIR = ".git/objects/";
+const GIT_HEAD_FILE = ".git/HEAD";
+
 class CommitObject {
   hash: string;
   parent?: string;
@@ -10,39 +13,61 @@ class CommitObject {
 
   constructor(content: string, hash: string) {
     this.hash = hash;
-
     const lines = content.split("\n");
 
-    this.parent = lines[1]?.startsWith("parent ")
+    this.parent = this.parseParent(lines);
+    this.author = this.parseAuthor(lines);
+    this.date = this.parseDate(lines);
+    this.message = this.parseMessage(lines);
+  }
+
+  /**
+   * parent の抽出
+   */
+  private parseParent(lines: string[]): string | undefined {
+    return lines[1]?.startsWith("parent ")
       ? lines[1].slice("parent ".length)
       : undefined;
+  }
 
-    // author の抽出
+  /**
+   * author の抽出
+   */
+  private parseAuthor(lines: string[]): string {
     const authorLine = lines.find((line) => line.startsWith("author ")) || "";
     const authorMatch = authorLine.match(/^author (.+) (\d+) ([\+\-]\d{4})$/);
-    if (authorMatch && authorMatch[1] && authorMatch[2]) {
-      this.author = authorMatch[1];
+    return authorMatch && authorMatch[1] ? authorMatch[1] : "";
+  }
+
+  /**
+   * date の抽出・フォーマット
+   */
+  private parseDate(lines: string[]): string {
+    const authorLine = lines.find((line) => line.startsWith("author ")) || "";
+    const authorMatch = authorLine.match(/^author (.+) (\d+) ([\+\-]\d{4})$/);
+    if (authorMatch && authorMatch[2]) {
       const unixTime = parseInt(authorMatch[2]);
       const timezone = authorMatch[3] || "";
       const date = new Date(unixTime * 1000);
-      this.date = `${date.toString().slice(0, 24)} ${timezone}`;
-    } else {
-      this.author = "";
-      this.date = "";
+      return `${date.toString().slice(0, 24)} ${timezone}`;
     }
-
-    // message の抽出（空行以降）
-    const emptyLineIndex = lines.findIndex((line) => line === "");
-    this.message =
-      emptyLineIndex !== -1
-        ? lines
-            .slice(emptyLineIndex + 1)
-            .join("\n")
-            .trim()
-        : "";
+    return "";
   }
 
-  logFormat(): string {
+  /**
+   * message の抽出
+   */
+  private parseMessage(lines: string[]): string {
+    const emptyLineIndex = lines.findIndex((line) => line === "");
+    return emptyLineIndex !== -1
+      ? lines
+          .slice(emptyLineIndex + 1)
+          .join("\n")
+          .trim()
+      : "";
+  }
+
+  toLogString(): string {
     return [
       `commit ${this.hash}`,
       `Author: ${this.author}`,
@@ -53,34 +78,75 @@ class CommitObject {
   }
 }
 
-const getCommitObject = (refHash: string): string => {
-  const dirName = refHash.slice(0, 2);
-  const fileName = refHash.slice(2);
-  const path = `.git/objects/${dirName}/${fileName}`;
-  const compressedObject = readFileSync(path);
-  const decompressedObject = inflateSync(Uint8Array.from(compressedObject));
-  const content = decompressedObject.toString("utf8");
-  return content;
-};
-
-export const log = (): string => {
-  const headContent = readFileSync(".git/HEAD", "utf8").trim();
-  // memo: detached HEADを一旦考慮しない
-  // if (headContent.startsWith("ref: ")) {
-  const ref = headContent.replace("ref: ", "");
-  // }
-  const refContent = readFileSync(`.git/${ref}`, "utf8").trim();
-  // const refContent = readFileSync(".git/refs/heads/f0rte/feature-mygit-log");
-
-  const logs: string[] = [];
-  let currentHash: string | undefined = refContent;
-
-  while (currentHash !== undefined) {
-    const content = getCommitObject(currentHash);
-    const commitObj: CommitObject = new CommitObject(content, currentHash);
-    logs.push(commitObj.logFormat());
-    currentHash = commitObj.parent;
+class MyGitLog {
+  /**
+   * コミットオブジェクトの内容を取得する
+   * @param refHash コミットハッシュ
+   * @returns デコンプレスされたコミットオブジェクトの内容
+   * @throws {Error} ファイルが存在しない場合やzlib解凍失敗時
+   */
+  private getCommitObject(refHash: string): string {
+    const dirName = refHash.slice(0, 2);
+    const fileName = refHash.slice(2);
+    const path = `${GIT_OBJECTS_DIR}${dirName}/${fileName}`;
+    const compressedObject = readFileSync(path);
+    const decompressedObject = inflateSync(Uint8Array.from(compressedObject));
+    const content = decompressedObject.toString("utf8");
+    return content;
   }
 
-  return logs.join("\n\n");
+  /**
+   * 現在のブランチのコミットハッシュを取得する
+   * @returns コミットハッシュ
+   * @throws {Error} ファイルが存在しない場合やパース失敗時
+   */
+  private getCurrentCommitHash(): string {
+    const headContent = readFileSync(GIT_HEAD_FILE, "utf8").trim();
+    // memo: detached HEADを一旦考慮しない
+    const ref = headContent.replace("ref: ", "");
+
+    try {
+      return readFileSync(`.git/${ref}`, "utf8").trim();
+    } catch (error: unknown) {
+      if (error instanceof Error && (error as any).code === "ENOENT") {
+        const branchName = ref.split("/").pop() || ref;
+        throw new Error(
+          `fatal: your current branch '${branchName}' does not have any commits yet`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * logの出力を生成する
+   * @returns フォーマットされた文字列
+   * @throws {Error} ファイル読み込みやパース失敗時
+   */
+  public generate(): string {
+    const logs: string[] = [];
+
+    try {
+      let currentHash: string | undefined = this.getCurrentCommitHash();
+
+      while (currentHash !== undefined) {
+        const content = this.getCommitObject(currentHash);
+        const commitObj: CommitObject = new CommitObject(content, currentHash);
+        logs.push(commitObj.toLogString());
+        currentHash = commitObj.parent;
+      }
+
+      return logs.join("\n\n");
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message.startsWith("fatal:")) {
+        return error.message;
+      }
+      throw error;
+    }
+  }
+}
+
+export const log = (): string => {
+  const myGitLog = new MyGitLog();
+  return myGitLog.generate();
 };

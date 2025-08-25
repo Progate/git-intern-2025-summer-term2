@@ -3,7 +3,11 @@ import { log } from "./log.js";
 
 export const mygit = async (argv: Array<string>): Promise<void> => {
   console.log(hello());
-  console.log(log());
+
+  if (argv.includes("log")) {
+    console.log(log());
+  }
+
   console.log(argv);
 
   // Avoid eslint error by adding some async operation.
