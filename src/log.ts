@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { inflateSync } from "zlib";
 
+
 const getCommitObject = (refHash: string) : string => {
     const dirName = refHash.slice(0, 2);
     const fileName = refHash.slice(2);
@@ -9,6 +10,14 @@ const getCommitObject = (refHash: string) : string => {
     const decompressedObject = inflateSync(Uint8Array.from(compressedObject));
     const content = decompressedObject.toString("utf8");
     return content;
+}
+
+const getParentHash = (content: string): string | undefined => {
+    const lines = content.split("\n");
+    if (lines[1]?.startsWith("parent")) {
+        return lines[1].slice("parent ".length);
+    }
+    return undefined;
 }
 
 export const log = (): string => {
@@ -21,6 +30,12 @@ export const log = (): string => {
     // const refContent = readFileSync(".git/refs/heads/f0rte/feature-mygit-log");
     const content = getCommitObject(refContent);
     console.log(content);
+    let parent = getParentHash(content);
+    while (parent !== undefined) {
+        const content = getCommitObject(parent);
+        console.log(content);
+        parent = getParentHash(content);
+    }
 
     return "log";
 };
