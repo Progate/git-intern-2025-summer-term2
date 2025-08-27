@@ -34,3 +34,11 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Install mygit globally
+        run: npm install -g .
+
+      - name: Test mygit installation
+        run: |
+          # Check if mygit command is available
+          which mygit
