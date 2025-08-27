@@ -316,4 +316,209 @@ describe("Commit", () => {
       assert.strictEqual(commit1.getSha(), commit2.getSha());
     });
   });
+
+  describe("getParents", () => {
+    it("should return empty array for root commit", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        "Root commit",
+      );
+
+      const parents = commit.getParents();
+
+      assert.deepStrictEqual(parents, []);
+    });
+
+    it("should return single parent", () => {
+      const commit = new Commit(
+        "tree123",
+        ["parent1"],
+        testAuthor,
+        testCommitter,
+        "Regular commit",
+      );
+
+      const parents = commit.getParents();
+
+      assert.deepStrictEqual(parents, ["parent1"]);
+    });
+
+    it("should return multiple parents for merge commit", () => {
+      const commit = new Commit(
+        "tree123",
+        ["parent1", "parent2", "parent3"],
+        testAuthor,
+        testCommitter,
+        "Merge commit",
+      );
+
+      const parents = commit.getParents();
+
+      assert.deepStrictEqual(parents, ["parent1", "parent2", "parent3"]);
+    });
+  });
+
+  describe("getAuthor", () => {
+    it("should return author information", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        "Test commit",
+      );
+
+      const author = commit.getAuthor();
+
+      assert.deepStrictEqual(author, testAuthor);
+      assert.strictEqual(author.name, "John Doe");
+      assert.strictEqual(author.email, "john@example.com");
+      assert.strictEqual(
+        author.timestamp.toISOString(),
+        "2025-01-01T12:00:00.000Z",
+      );
+    });
+
+    it("should return the same reference as constructor input", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        "Test commit",
+      );
+
+      const author = commit.getAuthor();
+
+      assert.strictEqual(author, testAuthor);
+    });
+  });
+
+  describe("getMessage", () => {
+    it("should return single line message", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        "Single line message",
+      );
+
+      const message = commit.getMessage();
+
+      assert.strictEqual(message, "Single line message");
+    });
+
+    it("should return multi-line message", () => {
+      const multiLineMessage = "First line\n\nSecond paragraph\nThird line";
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        multiLineMessage,
+      );
+
+      const message = commit.getMessage();
+
+      assert.strictEqual(message, multiLineMessage);
+    });
+
+    it("should return empty message", () => {
+      const commit = new Commit("tree123", [], testAuthor, testCommitter, "");
+
+      const message = commit.getMessage();
+
+      assert.strictEqual(message, "");
+    });
+  });
+
+  describe("getTree", () => {
+    it("should return tree SHA", () => {
+      const commit = new Commit(
+        "abc123def456",
+        [],
+        testAuthor,
+        testCommitter,
+        "Test commit",
+      );
+
+      const tree = commit.getTree();
+
+      assert.strictEqual(tree, "abc123def456");
+    });
+
+    it("should return different tree SHAs for different commits", () => {
+      const commit1 = new Commit(
+        "tree1",
+        [],
+        testAuthor,
+        testCommitter,
+        "Message",
+      );
+      const commit2 = new Commit(
+        "tree2",
+        [],
+        testAuthor,
+        testCommitter,
+        "Message",
+      );
+
+      assert.notStrictEqual(commit1.getTree(), commit2.getTree());
+    });
+  });
+
+  describe("getCommitter", () => {
+    it("should return committer information", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        "Test commit",
+      );
+
+      const committer = commit.getCommitter();
+
+      assert.deepStrictEqual(committer, testCommitter);
+      assert.strictEqual(committer.name, "Jane Doe");
+      assert.strictEqual(committer.email, "jane@example.com");
+      assert.strictEqual(
+        committer.timestamp.toISOString(),
+        "2025-01-02T15:30:00.000Z",
+      );
+    });
+
+    it("should return the same reference as constructor input", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testCommitter,
+        "Test commit",
+      );
+
+      const committer = commit.getCommitter();
+
+      assert.strictEqual(committer, testCommitter);
+    });
+
+    it("should handle case where author and committer are the same", () => {
+      const commit = new Commit(
+        "tree123",
+        [],
+        testAuthor,
+        testAuthor, // Same as author
+        "Test commit",
+      );
+
+      const author = commit.getAuthor();
+      const committer = commit.getCommitter();
+
+      assert.strictEqual(author, committer);
+    });
+  });
 });
