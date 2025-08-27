@@ -1,5 +1,6 @@
 import { IndexEntry, IndexHeader, FileTime } from './types.js';
 import { INDEX_VERSION } from './constants.js';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import * as fs from 'fs';
 
 /**
@@ -28,6 +29,7 @@ export class Index {
    * @param _path ファイルパス
    * @param _entry インデックスエントリ
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   addEntry(_path: string, _entry: IndexEntry): void {
     // TODO: 実装予定
   }
@@ -37,6 +39,7 @@ export class Index {
    * @param _path ファイルパス
    * @returns 削除されたかどうか
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   removeEntry(_path: string): boolean {
     // TODO: 実装予定
     return false;
@@ -47,6 +50,7 @@ export class Index {
    * @param _path ファイルパス
    * @returns インデックスエントリまたはundefined
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getEntry(_path: string): IndexEntry | undefined {
     // TODO: 実装予定
     return undefined;
@@ -56,7 +60,7 @@ export class Index {
    * 全てのエントリを取得 (パス順でソート)
    * @returns インデックスエントリの配列
    */
-  getAllEntries(): IndexEntry[] {
+  getAllEntries(): Array<IndexEntry> {
     // TODO: 実装予定
     return [];
   }
@@ -90,6 +94,7 @@ export class Index {
    * @param _stats ファイル統計情報
    * @returns 新しいIndexEntry
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static createEntryFromStats(_path: string, _sha1: string, _stats: fs.Stats): IndexEntry {
     // TODO: 実装予定
     throw new Error('Not implemented');
@@ -100,6 +105,7 @@ export class Index {
    * @param _timestamp タイムスタンプ
    * @returns FileTime
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static timestampToFileTime(_timestamp: Date | number): FileTime {
     // TODO: 実装予定
     return { seconds: 0, nanoseconds: 0 };
