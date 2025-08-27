@@ -40,5 +40,5 @@ jobs:
 
       - name: Test mygit installation
         run: |
-          # Check if mygit command is available
-          which mygit
+          # Test if mygit command runs
+          mygit
