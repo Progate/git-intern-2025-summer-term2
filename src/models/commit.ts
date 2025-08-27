@@ -78,4 +78,29 @@ export class Commit extends GitObject {
     const minutes = (Math.abs(offset) % 60).toString().padStart(2, "0");
     return `${sign}${hours}${minutes}`;
   }
+
+  /** 親コミットのSHA配列を取得 */
+  getParents(): Array<string> {
+    return this.parents;
+  }
+
+  /** 作者情報を取得 */
+  getAuthor(): GitActor {
+    return this.author;
+  }
+
+  /** コミットメッセージを取得 */
+  getMessage(): string {
+    return this.message;
+  }
+
+  /** ツリーのSHAを取得 */
+  getTree(): string {
+    return this.tree;
+  }
+
+  /** コミッター情報を取得 */
+  getCommitter(): GitActor {
+    return this.committer;
+  }
 }
