@@ -36,7 +36,10 @@ export default [
           allowExpressions: true,
         },
       ],
-      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
       "@typescript-eslint/array-type": [
         "error",
         {
