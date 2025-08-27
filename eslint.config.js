@@ -38,7 +38,7 @@ export default [
       ],
       "@typescript-eslint/no-unused-vars": [
         "error",
-        { argsIgnorePattern: '^_' },
+        { argsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/array-type": [
         "error",
