@@ -199,4 +199,3 @@ src/
           - **→ 返り値**: `newCommitSha: string` (新しいコミットのSHA)
       6.  `refRepo.updateHead(newCommitSha)` を呼び出し、現在のブランチ参照を更新します。
     - **→ 返り値**: `Promise<string>` (新しいコミットのSHA)
-
