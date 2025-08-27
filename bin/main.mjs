@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import { mygit } from "../dist/mygit.js";
+import { mygit } from "../dist/src/mygit.js";
 
 mygit(process.argv);
