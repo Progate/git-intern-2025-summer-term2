@@ -149,7 +149,7 @@ export class Index {
     const contentData = data.subarray(0, data.length - INDEX_CHECKSUM_SIZE);
     const expectedChecksum = data.subarray(data.length - INDEX_CHECKSUM_SIZE);
     const actualChecksum = crypto
-      .createHash("objectId")
+      .createHash("sha1")
       .update(contentData as Uint8Array)
       .digest();
 
