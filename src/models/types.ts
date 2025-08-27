@@ -14,7 +14,7 @@ export interface IndexEntry {
   uid: number; // ユーザーID
   gid: number; // グループID
   size: number; // ファイルサイズ
-  sha: string; // SHA-1ハッシュ (40文字の16進文字列)
+  objectId: string; // Object identifier (40文字の16進文字列)
   flags: number; // フラグ (assume-valid, stage, nameLength等)
   path: string; // ファイルパス
 }

@@ -87,13 +87,13 @@ export class Index {
   /**
    * ファイルの統計情報からIndexEntryを作成
    * @param _path ファイルパス
-   * @param _sha1 ファイルのSHA-1ハッシュ
+   * @param _objectId オブジェクト識別子
    * @param _stats ファイル統計情報
    * @returns 新しいIndexEntry
    */
   static createEntryFromStats(
     _path: string,
-    _sha1: string,
+    _objectId: string,
     _stats: fs.Stats,
   ): IndexEntry {
     // TODO: 実装予定
