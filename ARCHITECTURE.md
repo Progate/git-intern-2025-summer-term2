@@ -35,6 +35,7 @@ src/
 │   └── configRepository.ts    # 設定ファイル(.git/config)の読み書き
 ├── services/                  # アプリケーション/ビジネスロジック層
 │   ├── gitService.ts          # 高レベルなGit操作（ユースケース）を実装
+│   ├── logService.ts          # logコマンドの専用ビジネスロジック
 │   └── statusService.ts       # 状態分析などのドメインサービス
 ├── commands/                  # UI層
 │   ├── add.ts
@@ -155,14 +156,24 @@ src/
 ### `src/services/`
 
 - **`gitService.ts`**
+
   - **役割**: 高レベルなGitの機能（ユースケース）を実装する指揮者です。
   - **主なメソッド**:
     - `constructor(workDir: string)`: 内部で各`Repository`をインスタンス化します。
-    - `add(filepath: string): Promise<void>`: ファイルをステージングします。
-    - `commit(message: string, author: GitActor): Promise<string>`: 新しいコミットを作成し、そのSHAを返します。
-    - `log(): Promise<void>`: コミット履歴を表示します。
+    - `add(filepath: string): Promise<void>`: ファイルをステージングします。（未実装）
+    - `commit(message: string, author: GitActor): Promise<string>`: 新しいコミットを作成し、そのSHAを返します。（未実装）
+
+- **`logService.ts`**
+
+  - **役割**: `log`コマンドのビジネスロジックに特化した専用サービスです。
+  - **主なメソッド**:
+    - `constructor(objectRepo, referenceRepo)`: 必要なRepositoryインスタンスを受け取ります。
+    - `execute(): Promise<void>`: コミット履歴を表示します。
+    - `private formatCommit(commit: Commit, sha: string): string`: コミット情報を整形します。
+    - `private collectCommitHistory(startSha: string): Promise<Array<{sha: string, commit: Commit}>>`: コミット履歴を収集します。
+
 - **`statusService.ts`**
-  - **役割**: ファイルの状態分析というビジネスロジックに特化します。
+  - **役割**: ファイルの状態分析というドメインサービスです。
   - **主なメソッド**:
     - `getFileStatus(filepath: string): Promise<WorkdirStatus>`: 指定ファイルのステータス (`untracked`など) を返します。
 
@@ -197,22 +208,9 @@ src/
 1.  **`commands/add.ts -> addCommand(files)`**
 
     - **受け取り**: `files: string[]` (例: `['README.md']`)
-    - **処理**: `new GitService('.')` を生成し、`gitService.add('README.md')` を呼び出します。
+    - **処理**: `new GitService('.')` を生成し、`gitService.add('README.md')` を呼び出します。（未実装）
 
-2.  **`services/GitService.ts -> add(filepath)`**
-    - **受け取り**: `filepath: string` (例: `'README.md'`)
-    - **処理**:
-      1.  `IndexRepository.read(gitDir)` を呼び出します。
-          - **→ 返り値**: `indexRepo: IndexRepository` (現在のインデックス情報を持つインスタンス)
-      2.  `new StatusService(gitDir, indexRepo)` を生成します。
-      3.  `statusService.getFileStatus(filepath)` を呼び出します。
-          - **→ 返り値**: `status: WorkdirStatus` (例: `'modified'`)
-      4.  `status` に応じて処理を分岐し、必要であれば `objectRepo.write(blob)` を呼び出します。
-          - **受け取り**: `blob: Blob`
-          - **→ 返り値**: `sha: string` (BlobのSHA)
-      5.  `indexRepo.add(...)` や `indexRepo.remove(...)` でメモリ上のインデックスを更新します。
-      6.  `indexRepo.write()` を呼び出し、ディスク上の `.git/index` ファイルを更新します。
-    - **→ 返り値**: `Promise<void>`
+2.  **`services/GitService.ts -> add(filepath)`**（未実装）
 
 ### `my-git commit <message>` の実行フロー
 
@@ -221,19 +219,23 @@ src/
 1.  **`commands/commit.ts -> commitCommand(message)`**
 
     - **受け取り**: `message: string` (例: `"Initial commit"`)
-    - **処理**: `new GitService('.')` を生成し、`gitService.commit(message, author)` を呼び出します。（`author`情報は環境変数などから取得）
+    - **処理**: `new GitService('.')` を生成し、`gitService.commit(message, author)` を呼び出します。（未実装）
 
-2.  **`services/GitService.ts -> commit(message, author)`**
-    - **受け取り**: `message: string`, `author: GitActor`
+2.  **`services/GitService.ts -> commit(message, author)`**（未実装）
+
+### `my-git log` の実行フロー
+
+`my-git log` が実行された際のフローです。
+
+1.  **`commands/log.ts -> logCommand()`**
+
+    - **処理**: 必要なRepositoryを直接インスタンス化し、`new LogService(objectRepo, referenceRepo)` を生成して `logService.execute()` を呼び出します。
+
+2.  **`services/LogService.ts -> execute()`**
     - **処理**:
-      1.  `indexRepo.read(gitDir)` を呼び出し、現在のインデックス情報を取得します。
-      2.  内部でインデックス情報から`Tree`オブジェクトを再帰的に構築し、`objectRepo.write()`で全てDBに保存します。
-          - **→ 結果**: `rootTreeSha: string` (最上位TreeのSHA)
-      3.  `refRepo.resolveHead()` を呼び出します。
-          - **→ 返り値**: `parentSha: string` (親コミットのSHA)
-      4.  `rootTreeSha`, `parentSha`, `message`, `author` を元に `new Commit(...)` を生成します。
-      5.  `objectRepo.write(commit)` を呼び出します。
-          - **受け取り**: `commit: Commit`
-          - **→ 返り値**: `newCommitSha: string` (新しいコミットのSHA)
-      6.  `refRepo.updateHead(newCommitSha)` を呼び出し、現在のブランチ参照を更新します。
-    - **→ 返り値**: `Promise<string>` (新しいコミットのSHA)
+      1.  `refRepo.resolveHead()` を呼び出し、HEADが指すコミットのSHAを取得します。
+          - **→ 返り値**: `headSha: string`
+      2.  `collectCommitHistory(headSha)` を呼び出し、コミット履歴を収集します。
+          - **→ 返り値**: `Array<{sha: string, commit: Commit}>`
+      3.  各コミットを `formatCommit()` で整形し、標準出力に表示します。
+    - **→ 返り値**: `Promise<void>`
