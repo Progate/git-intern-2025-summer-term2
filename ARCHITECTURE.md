@@ -63,6 +63,7 @@ src/
       - `name: string`: 作者/コミッター名
       - `email: string`: メールアドレス
       - `timestamp: Date`: タイムスタンプ
+    - `type IndexEntry`
 
 - **`gitObject.ts`**
 
