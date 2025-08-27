@@ -132,9 +132,38 @@ describe("Commit", () => {
       const content = commit.getContent().toString("utf8");
 
       // 2025-01-01T12:00:00Z = 1735732800
-      assert.ok(content.includes("1735732800 +0900"));
+      const authorTimestamp = Math.floor(testAuthor.timestamp.getTime() / 1000);
+      const authorTimezone = (() => {
+        const offset = -testAuthor.timestamp.getTimezoneOffset();
+        const sign = offset >= 0 ? "+" : "-";
+        const hours = Math.floor(Math.abs(offset) / 60)
+          .toString()
+          .padStart(2, "0");
+        const minutes = (Math.abs(offset) % 60).toString().padStart(2, "0");
+        return `${sign}${hours}${minutes}`;
+      })();
+      assert.ok(
+        content.includes(`${authorTimestamp.toString()} ${authorTimezone}`),
+      );
+
       // 2025-01-02T15:30:00Z = 1735831800
-      assert.ok(content.includes("1735831800 +0900"));
+      const committerTimestamp = Math.floor(
+        testCommitter.timestamp.getTime() / 1000,
+      );
+      const committerTimezone = (() => {
+        const offset = -testCommitter.timestamp.getTimezoneOffset();
+        const sign = offset >= 0 ? "+" : "-";
+        const hours = Math.floor(Math.abs(offset) / 60)
+          .toString()
+          .padStart(2, "0");
+        const minutes = (Math.abs(offset) % 60).toString().padStart(2, "0");
+        return `${sign}${hours}${minutes}`;
+      })();
+      assert.ok(
+        content.includes(
+          `${committerTimestamp.toString()} ${committerTimezone}`,
+        ),
+      );
     });
 
     it("should handle multi-line commit messages", () => {
