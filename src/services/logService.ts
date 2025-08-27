@@ -1,6 +1,7 @@
 import { Commit } from "../models/commit.js";
 import { ObjectRepository } from "../repositories/objectRepository.js";
 import { ReferenceRepository } from "../repositories/referenceRepository.js";
+import { Logger, defaultLogger } from "../utils/logger.js";
 
 /**
  * logコマンドのビジネスロジックを担当するサービス
@@ -9,6 +10,7 @@ export class LogService {
   constructor(
     private readonly objectRepo: ObjectRepository,
     private readonly referenceRepo: ReferenceRepository,
+    private readonly logger: Logger = defaultLogger,
   ) {}
 
   /**
@@ -20,7 +22,7 @@ export class LogService {
       const headSha = await this.referenceRepo.resolveHead();
 
       if (!headSha) {
-        console.log("No commits found.");
+        this.logger.info("No commits found.");
         return;
       }
 
@@ -29,8 +31,8 @@ export class LogService {
 
       // 各コミットを表示（最新から順）
       for (const { sha, commit } of commitHistory) {
-        console.log(this.formatCommit(commit, sha));
-        console.log(); // 空行でコミット間を区切り
+        this.logger.info(this.formatCommit(commit, sha));
+        this.logger.info(""); // 空行でコミット間を区切り
       }
     } catch (error) {
       const errorMessage =
@@ -72,7 +74,7 @@ export class LogService {
         const gitObject = await this.objectRepo.read(currentSha);
 
         if (!(gitObject instanceof Commit)) {
-          console.warn(`Warning: ${currentSha} is not a commit object`);
+          this.logger.warn(`Warning: ${currentSha} is not a commit object`);
           continue;
         }
 
@@ -88,7 +90,7 @@ export class LogService {
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        console.warn(
+        this.logger.warn(
           `Warning: Failed to read commit ${currentSha}: ${errorMessage}`,
         );
         continue;
