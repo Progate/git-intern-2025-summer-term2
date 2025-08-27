@@ -63,7 +63,20 @@ src/
       - `name: string`: 作者/コミッター名
       - `email: string`: メールアドレス
       - `timestamp: Date`: タイムスタンプ
-    - `type IndexEntry`
+    - `interface IndexEntry`: インデックスエントリの型定義
+      - `ctime: FileTime`: 作成時刻
+      - `mtime: FileTime`: 変更時刻
+      - `dev: number`, `ino: number`, `mode: number`, `uid: number`, `gid: number`, `size: number`: ファイル統計情報
+      - `sha1: string`: SHA-1ハッシュ
+      - `flags: number`: フラグ情報
+      - `path: string`: ファイルパス
+    - `interface FileTime`: 高精度時刻型
+      - `seconds: number`: Unix時刻（秒）
+      - `nanoseconds: number`: ナノ秒部分
+    - `interface IndexHeader`: インデックスヘッダー型
+      - `signature: string`: ファイル署名（"DIRC"）
+      - `version: number`: バージョン番号
+      - `entryCount: number`: エントリ数
 
 - **`gitObject.ts`**
 
@@ -73,7 +86,23 @@ src/
       - `serialize(): Buffer`: オブジェクトをヘッダー付きバイナリに変換します。
       - `getSha(): string`: オブジェクトのSHA-1ハッシュを計算します。
 
+- **`gitIndex.ts`**
+
+  - **役割**: Gitインデックス（`.git/index`ファイル）を表現するクラスです。
+  - **主な要素**:
+    - `class Index`:
+      - `static async fromFile(indexPath: string): Promise<Index>`: ファイルからIndexインスタンスを作成します。
+      - `static deserialize(data: Buffer): Index`: バイナリデータからIndexインスタンスを作成します。
+      - `addEntry(path: string, entry: IndexEntry): void`: エントリを追加・更新します。
+      - `removeEntry(path: string): boolean`: エントリを削除します。
+      - `getEntry(path: string): IndexEntry | undefined`: エントリを取得します。
+      - `getAllEntries(): IndexEntry[]`: 全エントリをソート済みで取得します。
+      - `getEntryCount(): number`: エントリ数を取得します。
+      - `getHeader(): IndexHeader`: ヘッダー情報を取得します。
+  - **設計判断**: 静的ファクトリーメソッド（`fromFile`, `deserialize`）をクラス内に配置し、低レベルなバイナリ操作をカプセル化しています。
+
 - **`blob.ts` / `tree.ts` / `commit.ts`**
+
   - **役割**: `GitObject`を継承し、各オブジェクト種別固有のデータ構造とロジックを実装します。
   - **主な要素**:
     - `class Blob extends GitObject`:
@@ -86,6 +115,15 @@ src/
       - `author: GitActor`: 作者情報。
       - `committer: GitActor`: コミッター情報。
       - `message: string`: コミットメッセージ。
+
+- **`constants.ts`**
+  - **役割**: Git index関連の定数を管理します。
+  - **主な要素**:
+    - `INDEX_SIGNATURE`: インデックスファイルの署名（"DIRC"）
+    - `INDEX_VERSION`: サポートするインデックスバージョン（2）
+    - `FILE_MODES`: ファイルモードの定数（通常ファイル、実行可能ファイル、シンボリックリンク等）
+    - `INDEX_ENTRY_FLAGS`: エントリフラグの定数（assume-valid、ステージレベル等）
+    - `INDEX_ENTRY_SIZE`: エントリサイズ関連の定数
 
 ### `src/repositories/`
 
