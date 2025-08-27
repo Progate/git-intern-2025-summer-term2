@@ -1,5 +1,5 @@
 // インデックスファイルの署名
-export const INDEX_SIGNATURE = 'DIRC';
+export const INDEX_SIGNATURE = "DIRC";
 
 // サポートされるインデックスのバージョン (バージョン2のみ)
 export const INDEX_VERSION = 2;
@@ -19,34 +19,34 @@ export const FILE_MODES = {
 // ファイルモードのビット構造 (32ビット)
 export const FILE_MODE_BITS = {
   // オブジェクトタイプ (4ビット, ビット12-15)
-  OBJECT_TYPE_MASK: 0xF000,
-  REGULAR_FILE_TYPE: 0x8000,  // 1000 (binary)
-  SYMLINK_TYPE: 0xA000,       // 1010 (binary)  
-  GITLINK_TYPE: 0xE000,       // 1110 (binary)
-  
+  OBJECT_TYPE_MASK: 0xf000,
+  REGULAR_FILE_TYPE: 0x8000, // 1000 (binary)
+  SYMLINK_TYPE: 0xa000, // 1010 (binary)
+  GITLINK_TYPE: 0xe000, // 1110 (binary)
+
   // Unix権限 (9ビット, ビット0-8)
-  PERMISSION_MASK: 0x01FF,
-  PERMISSION_644: 0o644,      // rw-r--r--
-  PERMISSION_755: 0o755,      // rwxr-xr-x
+  PERMISSION_MASK: 0x01ff,
+  PERMISSION_644: 0o644, // rw-r--r--
+  PERMISSION_755: 0o755, // rwxr-xr-x
 } as const;
 
 // インデックスエントリのフラグ (16ビット) - バージョン2
 export const INDEX_ENTRY_FLAGS = {
   // assume-valid flag (1ビット)
-  ASSUME_VALID: 0x8000,  // ビット15
-  
+  ASSUME_VALID: 0x8000, // ビット15
+
   // 拡張フラグ (1ビット) - バージョン2では常に0
   EXTENDED_FLAG: 0x4000, // ビット14 (バージョン2では使用しない)
-  
+
   // ステージレベル (2ビット)
-  STAGE_MASK: 0x3000,    // ビット12-13
-  STAGE_0: 0x0000,       // 通常のファイル
-  STAGE_1: 0x1000,       // base (merge conflict)
-  STAGE_2: 0x2000,       // ours (merge conflict)
-  STAGE_3: 0x3000,       // theirs (merge conflict)
-  
+  STAGE_MASK: 0x3000, // ビット12-13
+  STAGE_0: 0x0000, // 通常のファイル
+  STAGE_1: 0x1000, // base (merge conflict)
+  STAGE_2: 0x2000, // ours (merge conflict)
+  STAGE_3: 0x3000, // theirs (merge conflict)
+
   // パス名の長さ (12ビット)
-  NAME_LENGTH_MASK: 0x0FFF, // ビット0-11
+  NAME_LENGTH_MASK: 0x0fff, // ビット0-11
 } as const;
 
 // エントリサイズの定数

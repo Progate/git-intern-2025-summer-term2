@@ -1,7 +1,8 @@
-import { IndexEntry, IndexHeader, FileTime } from './types.js';
-import { INDEX_VERSION } from './constants.js';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import * as fs from 'fs';
+import * as fs from "fs";
+
+import { INDEX_VERSION } from "./constants.js";
+import { FileTime, IndexEntry, IndexHeader } from "./types.js";
 
 /**
  * Gitインデックス(.git/index)を表現するクラス
@@ -81,9 +82,9 @@ export class Index {
   getHeader(): IndexHeader {
     // TODO: 実装予定
     return {
-      signature: 'DIRC',
+      signature: "DIRC",
       version: this._version,
-      entryCount: 0
+      entryCount: 0,
     };
   }
 
@@ -95,9 +96,13 @@ export class Index {
    * @returns 新しいIndexEntry
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  static createEntryFromStats(_path: string, _sha1: string, _stats: fs.Stats): IndexEntry {
+  static createEntryFromStats(
+    _path: string,
+    _sha1: string,
+    _stats: fs.Stats,
+  ): IndexEntry {
     // TODO: 実装予定
-    throw new Error('Not implemented');
+    throw new Error("Not implemented");
   }
 
   /**
