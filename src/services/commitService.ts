@@ -95,7 +95,6 @@ export class CommitService {
 
   /**
    * インデックスエントリから階層的Treeオブジェクトを構築
-   * PR2: サブディレクトリを含む階層構造に対応
    * @param entries インデックスエントリの配列
    * @returns ルートTreeのSHA
    */
