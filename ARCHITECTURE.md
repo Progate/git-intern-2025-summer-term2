@@ -27,6 +27,8 @@ src/
 │   ├── blob.ts                # Blobオブジェクトの具象クラス
 │   ├── tree.ts                # Treeオブジェクトの具象クラス
 │   ├── commit.ts              # Commitオブジェクトの具象クラス
+│   ├── gitIndex.ts            # Gitインデックス(.git/index)のクラス
+│   ├── constants.ts           # Git index関連の定数
 │   └── types.ts               # 共有される型定義
 ├── repositories/              # データ永続化層
 │   ├── objectRepository.ts
@@ -34,15 +36,16 @@ src/
 │   ├── referenceRepository.ts
 │   └── configRepository.ts    # 設定ファイル(.git/config)の読み書き
 ├── services/                  # アプリケーション/ビジネスロジック層
-│   ├── gitService.ts          # 高レベルなGit操作（ユースケース）を実装
+│   ├── gitService.ts          # 汎用的なGit操作（未実装）
 │   ├── logService.ts          # logコマンドの専用ビジネスロジック
-│   └── statusService.ts       # 状態分析などのドメインサービス
+│   └── statusService.ts       # 状態分析などのドメインサービス（未実装）
 ├── commands/                  # UI層
 │   ├── add.ts
 │   ├── commit.ts
 │   └── log.ts
 └── utils/                     # 共通ユーティリティ
-    └── logger.ts              # ログ機能
+    ├── logger.ts              # ログ機能
+    └── gitUtils.ts            # Git関連のユーティリティ
 
 ```
 
@@ -155,24 +158,26 @@ src/
 
 ### `src/services/`
 
-- **`gitService.ts`**
+各Gitコマンドに対応する専用のサービスクラスを配置し、コマンドごとのビジネスロジックを実装します。
 
-  - **役割**: 高レベルなGitの機能（ユースケース）を実装する指揮者です。
+- **`gitService.ts`**（未実装）
+
+  - **役割**: 汎用的なGitの機能（ユースケース）を実装します。
   - **主なメソッド**:
     - `constructor(workDir: string)`: 内部で各`Repository`をインスタンス化します。
-    - `add(filepath: string): Promise<void>`: ファイルをステージングします。（未実装）
-    - `commit(message: string, author: GitActor): Promise<string>`: 新しいコミットを作成し、そのSHAを返します。（未実装）
+    - `add(filepath: string): Promise<void>`: ファイルをステージングします。
+    - `commit(message: string, author: GitActor): Promise<string>`: 新しいコミットを作成し、そのSHAを返します。
 
 - **`logService.ts`**
 
   - **役割**: `log`コマンドのビジネスロジックに特化した専用サービスです。
   - **主なメソッド**:
-    - `constructor(objectRepo, referenceRepo)`: 必要なRepositoryインスタンスを受け取ります。
+    - `constructor(objectRepo, referenceRepo, logger?)`: 必要なRepositoryインスタンスを受け取ります。
     - `execute(): Promise<void>`: コミット履歴を表示します。
     - `private formatCommit(commit: Commit, sha: string): string`: コミット情報を整形します。
     - `private collectCommitHistory(startSha: string): Promise<Array<{sha: string, commit: Commit}>>`: コミット履歴を収集します。
 
-- **`statusService.ts`**
+- **`statusService.ts`**（未実装）
   - **役割**: ファイルの状態分析というドメインサービスです。
   - **主なメソッド**:
     - `getFileStatus(filepath: string): Promise<WorkdirStatus>`: 指定ファイルのステータス (`untracked`など) を返します。
@@ -180,20 +185,30 @@ src/
 ### `src/commands/`
 
 - **`add.ts` / `commit.ts` / `log.ts`**
-  - **役割**: CLIと`GitService`のメソッド呼び出しの橋渡しをします。
+  - **役割**: CLIと各専用サービスクラスのメソッド呼び出しの橋渡しをします。
+  - **設計方針**: 各コマンドは対応するサービス（例：`log`コマンド → `LogService`）を呼び出します。
   - **主な要素**:
     - `export async function addCommand(files: string[]): Promise<void>`
     - `export async function commitCommand(message: string): Promise<void>`
+    - `export async function logCommand(): Promise<void>`
 
 ### `src/utils/`
 
 - **`logger.ts`**
+
   - **役割**: アプリケーション全体のログ機能を提供します。
   - **主な要素**:
-    - `enum LogLevel`: ログレベル（DEBUG, INFO, WARN, ERROR）を定義します。
+    - `type LogLevel`: ログレベル（"debug", "info", "warn", "error"）を定義します。
     - `interface Logger`: ログ機能のインターフェースを定義します。
     - `class ConsoleLogger`: コンソール出力を行う具象実装です。
-    - `export const logger`: シングルトンのロガーインスタンスです。
+    - `class MockLogger`: テスト用のモックロガー実装です。
+    - `export const defaultLogger`: デフォルトのロガーインスタンスです。
+
+- **`gitUtils.ts`**
+  - **役割**: Git関連の共通ユーティリティ機能を提供します。
+  - **主な要素**:
+    - `findGitDirectory(startDir)`: 指定されたディレクトリから上位に向かって.gitディレクトリを探します。
+    - `isGitRepository(dir)`: 現在のディレクトリがGitリポジトリかどうかを判定します。
 
 ### `src/mygit.ts`
 
@@ -208,9 +223,7 @@ src/
 1.  **`commands/add.ts -> addCommand(files)`**
 
     - **受け取り**: `files: string[]` (例: `['README.md']`)
-    - **処理**: `new GitService('.')` を生成し、`gitService.add('README.md')` を呼び出します。（未実装）
-
-2.  **`services/GitService.ts -> add(filepath)`**（未実装）
+    - **処理**: 対応するサービス（未実装）を呼び出します。
 
 ### `my-git commit <message>` の実行フロー
 
@@ -219,9 +232,7 @@ src/
 1.  **`commands/commit.ts -> commitCommand(message)`**
 
     - **受け取り**: `message: string` (例: `"Initial commit"`)
-    - **処理**: `new GitService('.')` を生成し、`gitService.commit(message, author)` を呼び出します。（未実装）
-
-2.  **`services/GitService.ts -> commit(message, author)`**（未実装）
+    - **処理**: 対応するサービス（未実装）を呼び出します。
 
 ### `my-git log` の実行フロー
 
