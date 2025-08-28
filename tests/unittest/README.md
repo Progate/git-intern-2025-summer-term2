@@ -23,6 +23,7 @@ tests/unittest/
 │   └── configRepository.test.ts # Tests for ConfigRepository class
 ├── services/           # Tests for Service classes
 │   ├── addService.test.ts # Tests for AddService class
+│   ├── commitService.test.ts # Tests for CommitService class
 │   └── logService.test.ts # Tests for LogService class
 └── utils/              # Tests for Utility functions
     └── gitUtils.test.ts # Tests for Git utility functions
@@ -57,13 +58,11 @@ node --import tsx --test tests/unittest/services/logService.test.ts
 node --import tsx --test tests/unittest/repositories/referenceRepository.test.ts
 
 # Run ConfigRepository tests
+# Run ConfigRepository tests
 node --import tsx --test tests/unittest/repositories/configRepository.test.ts
 
-# Run GitUtils tests
-node --import tsx --test tests/unittest/utils/gitUtils.test.ts
-
-# Run Blob tests
-node --import tsx --test tests/unittest/models/blob.test.ts
+# Run CommitService tests (includes hierarchical structure tests)
+node --import tsx --test tests/unittest/services/commitService.test.ts
 ```
 
 ### Run Tests with Pattern
