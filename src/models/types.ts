@@ -60,4 +60,17 @@ export interface FileCategorization {
   untracked: Array<string>;
   /** 作業ディレクトリに存在せずindexに存在するファイル */
   deleted: Array<string>;
+/** ワーキングディレクトリのファイル状態を表す型 */
+}
+
+/** ディレクトリ階層を表現するTreeNodeインターフェース */
+export interface TreeNode {
+  /** ディレクトリ/ファイル名 */
+  name: string;
+  /** 子ノード（ディレクトリの場合） */
+  children: Map<string, TreeNode>;
+  /** インデックスエントリ（ファイルの場合） */
+  entry?: IndexEntry;
+  /** ノードの種別 */
+  type: "directory" | "file";
 }
