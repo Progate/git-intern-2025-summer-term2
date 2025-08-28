@@ -1,6 +1,6 @@
 import { Commit } from "../models/commit.js";
 import { Tree } from "../models/tree.js";
-import { IndexEntry } from "../models/types.js";
+import { IndexEntry, TreeNode } from "../models/types.js";
 import { ConfigRepository } from "../repositories/configRepository.js";
 import { IndexRepository } from "../repositories/indexRepository.js";
 import { ObjectRepository } from "../repositories/objectRepository.js";
@@ -94,8 +94,8 @@ export class CommitService {
   }
 
   /**
-   * インデックスエントリからTreeオブジェクトを構築
-   * 現在はフラット構造のみ対応（PR1の範囲）
+   * インデックスエントリから階層的Treeオブジェクトを構築
+   * PR2: サブディレクトリを含む階層構造に対応
    * @param entries インデックスエントリの配列
    * @returns ルートTreeのSHA
    */
@@ -103,30 +103,116 @@ export class CommitService {
     entries: Array<IndexEntry>,
   ): Promise<string> {
     try {
-      // PR1: シンプルなフラット構造のみ対応
-      // 全ファイルが同一ディレクトリにある前提で処理
-      const treeEntries = entries.map((entry) => ({
-        mode: this.formatFileMode(entry.mode),
-        name: entry.path.split("/").pop() ?? entry.path, // ファイル名のみ取得
-        sha: entry.objectId,
-      }));
+      if (entries.length === 0) {
+        throw new Error("No staged files to commit");
+      }
 
-      // TreeEntryをソート（Git仕様準拠）
-      treeEntries.sort((a, b) => a.name.localeCompare(b.name));
+      // 1. ディレクトリ階層の構築
+      const rootNode = this.buildDirectoryTree(entries);
 
-      // Treeオブジェクト作成・保存
-      const tree = new Tree(treeEntries);
-      const treeSha = await this.objectRepo.write(tree);
+      // 2. 階層的Treeオブジェクトの作成
+      const rootTreeSha = await this.createTreeObject(rootNode);
 
-      this.logger.debug(
-        `Built tree with ${String(treeEntries.length)} entries: ${treeSha}`,
-      );
-      return treeSha;
+      this.logger.debug(`Built hierarchical tree: ${rootTreeSha}`);
+      return rootTreeSha;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to build tree from index: ${errorMessage}`);
+      throw new Error(`Failed to build hierarchical tree: ${errorMessage}`);
     }
+  }
+
+  /**
+   * インデックスエントリからディレクトリ階層を構築
+   * @param entries インデックスエントリの配列
+   * @returns ルートディレクトリのTreeNode
+   */
+  private buildDirectoryTree(entries: Array<IndexEntry>): TreeNode {
+    const root: TreeNode = {
+      name: "",
+      children: new Map(),
+      type: "directory",
+    };
+
+    for (const entry of entries) {
+      const pathParts = entry.path.split("/").filter((part) => part.length > 0);
+      let currentNode = root;
+
+      // パスを辿ってディレクトリ階層を構築
+      for (let i = 0; i < pathParts.length; i++) {
+        const part = pathParts[i];
+        if (!part) continue; // 空文字列をスキップ
+
+        const isLastPart = i === pathParts.length - 1;
+
+        if (isLastPart) {
+          // ファイルノード作成
+          currentNode.children.set(part, {
+            name: part,
+            children: new Map(),
+            entry,
+            type: "file",
+          });
+        } else {
+          // ディレクトリノード作成または取得
+          if (!currentNode.children.has(part)) {
+            currentNode.children.set(part, {
+              name: part,
+              children: new Map(),
+              type: "directory",
+            });
+          }
+          const nextNode = currentNode.children.get(part);
+          if (nextNode) {
+            currentNode = nextNode;
+          }
+        }
+      }
+    }
+
+    return root;
+  }
+
+  /**
+   * TreeNodeから実際のTreeオブジェクトを再帰的に作成
+   * @param node 対象のTreeNode
+   * @returns TreeオブジェクトのSHA
+   */
+  private async createTreeObject(node: TreeNode): Promise<string> {
+    const treeEntries = [];
+
+    // 子ノードを名前順でソート（Git仕様準拠）
+    const sortedChildren = Array.from(node.children.entries()).sort((a, b) =>
+      a[0].localeCompare(b[0]),
+    );
+
+    for (const [, child] of sortedChildren) {
+      if (child.type === "file" && child.entry) {
+        // ファイルエントリ
+        treeEntries.push({
+          mode: this.formatFileMode(child.entry.mode),
+          name: child.name,
+          sha: child.entry.objectId,
+        });
+      } else if (child.type === "directory") {
+        // ディレクトリエントリ（再帰的に処理）
+        const subTreeSha = await this.createTreeObject(child);
+        treeEntries.push({
+          mode: "040000", // ディレクトリモード
+          name: child.name,
+          sha: subTreeSha,
+        });
+      }
+    }
+
+    // Treeオブジェクト作成・保存
+    const tree = new Tree(treeEntries);
+    const treeSha = await this.objectRepo.write(tree);
+
+    this.logger.debug(
+      `Created tree object with ${String(treeEntries.length)} entries: ${treeSha}`,
+    );
+    return treeSha;
   }
 
   /**
