@@ -54,3 +54,13 @@ export interface GitActor {
 
 /** ワーキングディレクトリのファイル状態を表す型 */
 export type WorkdirStatus = "untracked" | "modified" | "deleted" | "unmodified";
+
+/** addコマンドでのファイル分類結果 */
+export interface FileCategorization {
+  /** 作業ディレクトリに存在してindexに存在するファイル */
+  tracking: Array<string>;
+  /** 作業ディレクトリに存在してindexに存在しないファイル */
+  untracked: Array<string>;
+  /** 作業ディレクトリに存在せずindexに存在するファイル */
+  deleted: Array<string>;
+}
