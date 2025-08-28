@@ -17,7 +17,8 @@ tests/unittest/
 │   └── gitObject.test.ts # Tests for GitObject base class
 ├── repositories/       # Tests for Repository classes
 │   ├── objectRepository.test.ts # Tests for ObjectRepository class
-│   └── referenceRepository.test.ts # Tests for ReferenceRepository class
+│   ├── referenceRepository.test.ts # Tests for ReferenceRepository class
+│   └── configRepository.test.ts # Tests for ConfigRepository class
 └── utils/              # Tests for Utility functions
     └── gitUtils.test.ts # Tests for Git utility functions
 ```
@@ -43,6 +44,9 @@ npm run test:watch
 ```bash
 # Run ReferenceRepository tests
 node --import tsx --test tests/unittest/repositories/referenceRepository.test.ts
+
+# Run ConfigRepository tests
+node --import tsx --test tests/unittest/repositories/configRepository.test.ts
 
 # Run GitUtils tests
 node --import tsx --test tests/unittest/utils/gitUtils.test.ts
