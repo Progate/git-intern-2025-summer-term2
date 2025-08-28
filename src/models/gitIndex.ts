@@ -274,7 +274,7 @@ export class Index {
     // SHA-1 (20バイト)
     if (entry.objectId.length !== 40) {
       throw new Error(
-        `Invalid objectId: expected 40 characters, got ${entry.objectId.length}`,
+        `Invalid objectId: expected 40 characters, got ${entry.objectId.length.toString()}`,
       );
     }
     const objectIdBuffer = Buffer.from(entry.objectId, "hex");
