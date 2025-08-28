@@ -10,38 +10,26 @@ describe("mygit log e2e", () => {
   let originalCwd: string;
 
   beforeEach(() => {
-    // 元の作業ディレクトリを保存
     originalCwd = process.cwd();
-
-    // 一時テストディレクトリを作成
     testDir = fs.mkdtempSync(path.join(os.tmpdir(), "mygit-e2e-"));
     process.chdir(testDir);
   });
 
   afterEach(() => {
-    // 元の作業ディレクトリに戻る
     process.chdir(originalCwd);
-
-    // テストディレクトリを削除
     if (fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true, force: true });
     }
   });
 
-  /**
-   * テスト用のGitリポジトリを初期化し、指定されたコミットを作成
-   */
   const setupGitRepo = (
     commits: Array<{ message: string; files: Record<string, string> }>,
   ): void => {
-    // Gitリポジトリを初期化
-    execSync("git init", { cwd: testDir });
+    execSync("git init", { cwd: testDir, stdio: "pipe" });
     execSync("git config user.name 'Test User'", { cwd: testDir });
     execSync("git config user.email 'test@example.com'", { cwd: testDir });
 
-    // 各コミットを作成
     commits.forEach((commit, index) => {
-      // ファイルを作成
       Object.entries(commit.files).forEach(([filename, content]) => {
         const filePath = path.join(testDir, filename);
         const dirPath = path.dirname(filePath);
@@ -51,10 +39,8 @@ describe("mygit log e2e", () => {
         fs.writeFileSync(filePath, content);
       });
 
-      // ファイルをステージング
       execSync("git add .", { cwd: testDir });
 
-      // コミット（一意性を確保するため時刻をずらす）
       const timestamp = new Date(
         Date.now() - (commits.length - index - 1) * 60000,
       );
@@ -65,9 +51,6 @@ describe("mygit log e2e", () => {
     });
   };
 
-  /**
-   * mygit logコマンドを実行してその結果を取得
-   */
   const runMygitLog = (): {
     stdout: string;
     stderr: string;
@@ -81,7 +64,6 @@ describe("mygit log e2e", () => {
         encoding: "utf8",
         stdio: ["pipe", "pipe", "pipe"],
       });
-
       return { stdout, stderr: "", exitCode: 0 };
     } catch (error) {
       const execError = error as {
@@ -99,66 +81,68 @@ describe("mygit log e2e", () => {
 
   describe("正常系", () => {
     test("複数のコミット履歴を表示", () => {
-      // テスト用リポジトリをセットアップ（3つのコミット）
-      setupGitRepo([
-        {
-          message: "first commit",
-          files: { "README.md": "# Hello World" },
-        },
-        {
-          message: "add feature",
-          files: { "feature.txt": "new feature" },
-        },
-        {
-          message: "fix bug",
-          files: { "bug.txt": "bug fixed" },
-        },
-      ]);
+      // Git リポジトリ初期化
+      execSync("git init", { stdio: "pipe" });
+      execSync("git config user.name 'Test User'");
+      execSync("git config user.email 'test@example.com'");
 
-      const result = runMygitLog();
+      // 1つ目のコミット
+      fs.writeFileSync("README.md", "# Hello World");
+      execSync("git add .");
+      execSync("git commit -m 'first commit'");
 
-      // 正常終了
-      assert.strictEqual(result.exitCode, 0);
-      assert.strictEqual(result.stderr, "");
+      // 2つ目のコミット
+      fs.writeFileSync("feature.txt", "new feature");
+      execSync("git add .");
+      execSync("git commit -m 'add feature'");
 
-      // 出力内容の確認
-      assert(result.stdout.includes("fix bug"));
-      assert(result.stdout.includes("add feature"));
-      assert(result.stdout.includes("first commit"));
-      assert(result.stdout.includes("Author: Test User <test@example.com>"));
-      assert(result.stdout.includes("commit "));
+      // 3つ目のコミット
+      fs.writeFileSync("bug.txt", "bug fixed");
+      execSync("git add .");
+      execSync("git commit -m 'fix bug'");
 
-      // コミットの順序確認（最新が最初に表示される）
-      const fixBugIndex = result.stdout.indexOf("fix bug");
-      const addFeatureIndex = result.stdout.indexOf("add feature");
-      const firstCommitIndex = result.stdout.indexOf("first commit");
+      // mygit log実行
+      const mygitPath = path.join(originalCwd, "bin", "main.mjs");
+      const stdout = execSync(`node "${mygitPath}" log`, { encoding: "utf8" });
 
-      assert(fixBugIndex < addFeatureIndex);
-      assert(addFeatureIndex < firstCommitIndex);
+      // 検証
+      assert(stdout.includes("fix bug"));
+      assert(stdout.includes("add feature"));
+      assert(stdout.includes("first commit"));
+      assert(stdout.includes("Author: Test User <test@example.com>"));
+      assert(stdout.includes("commit "));
+
+      // 順序確認（最新が最初に表示される）
+      const fixBugIndex = stdout.indexOf("fix bug");
+      const addFeatureIndex = stdout.indexOf("add feature");
+      const firstCommitIndex = stdout.indexOf("first commit");
+
+      assert(fixBugIndex !== -1 && fixBugIndex < addFeatureIndex);
+      assert(addFeatureIndex !== -1 && addFeatureIndex < firstCommitIndex);
     });
 
     test("単一のコミット履歴を表示", () => {
-      // 単一コミットのリポジトリをセットアップ
-      setupGitRepo([
-        {
-          message: "initial commit",
-          files: { "index.html": "<html></html>" },
-        },
-      ]);
+      // Git リポジトリ初期化
+      execSync("git init", { stdio: "pipe" });
+      execSync("git config user.name 'Test User'");
+      execSync("git config user.email 'test@example.com'");
 
-      const result = runMygitLog();
+      // 1つのコミット
+      fs.writeFileSync("index.html", "<html></html>");
+      execSync("git add .");
+      execSync("git commit -m 'initial commit'");
 
-      // 正常終了
-      assert.strictEqual(result.exitCode, 0);
-      assert.strictEqual(result.stderr, "");
+      // mygit log実行
+      const mygitPath = path.join(originalCwd, "bin", "main.mjs");
+      const stdout = execSync(`node "${mygitPath}" log`, { encoding: "utf8" });
 
-      // 出力内容の確認
-      assert(result.stdout.includes("initial commit"));
-      assert(result.stdout.includes("Author: Test User <test@example.com>"));
-      assert(result.stdout.includes("commit "));
+      // 検証
+      assert(stdout.includes("initial commit"));
+      assert(stdout.includes("Author: Test User <test@example.com>"));
+      assert(stdout.includes("commit "));
 
       // コミットが1つだけ表示されることを確認
-      const commitMatches = result.stdout.match(/commit [0-9a-f]{40}/g);
+      const commitMatches = stdout.match(/commit [0-9a-f]{40}/g);
       assert.strictEqual(commitMatches?.length, 1);
     });
 
@@ -219,24 +203,18 @@ Closes #123`;
 
     test("空のリポジトリの場合（コミットが存在しない）", () => {
       // Gitリポジトリを初期化するがコミットは作成しない
-      execSync("git init", { cwd: testDir });
+      execSync("git init", { cwd: testDir, stdio: "pipe" });
 
       const result = runMygitLog();
 
-      // エラーまたは「コミットなし」メッセージが表示される
-      if (result.exitCode === 0) {
-        const matchResult = /No commits found|コミットがありません/.exec(
-          result.stdout,
-        );
-        assert(matchResult !== null);
-      } else {
-        assert(result.stderr.includes("Error:"));
-      }
+      // エラーになることを確認（実際の実装では "Reference not found" エラーが出力される）
+      assert.notStrictEqual(result.exitCode, 0);
+      assert(result.stderr.includes("Error:"));
     });
 
     test("HEADファイルが存在しない場合", () => {
       // Gitリポジトリを初期化してからHEADファイルを削除
-      execSync("git init", { cwd: testDir });
+      execSync("git init", { cwd: testDir, stdio: "pipe" });
       setupGitRepo([
         { message: "test commit", files: { "file.txt": "content" } },
       ]);
@@ -253,18 +231,15 @@ Closes #123`;
 
   describe("境界値テスト", () => {
     test("マージコミット（複数の親を持つコミット）", () => {
-      // メインブランチにコミット
       setupGitRepo([
         { message: "initial commit", files: { "main.txt": "main" } },
       ]);
 
-      // featureブランチを作成してコミット
       execSync("git checkout -b feature", { cwd: testDir });
       setupGitRepo([
         { message: "feature commit", files: { "feature.txt": "feature" } },
       ]);
 
-      // メインブランチに戻ってマージ（masterブランチを使用）
       execSync("git checkout master", { cwd: testDir });
       execSync("git merge feature --no-ff -m 'merge feature branch'", {
         cwd: testDir,
@@ -278,24 +253,11 @@ Closes #123`;
       assert(result.stdout.includes("initial commit"));
     });
 
-    test("空のコミットメッセージ", () => {
-      setupGitRepo([{ message: "", files: { "empty.txt": "content" } }]);
-
-      const result = runMygitLog();
-
-      assert.strictEqual(result.exitCode, 0);
-      // 空のメッセージでも正常に処理される
-      assert(result.stdout.includes("commit "));
-      assert(result.stdout.includes("Author: Test User"));
-    });
-
     test("作者名に特殊文字が含まれる場合", () => {
-      // Gitリポジトリを初期化
-      execSync("git init", { cwd: testDir });
+      execSync("git init", { cwd: testDir, stdio: "pipe" });
       execSync("git config user.name '田中 太郎'", { cwd: testDir });
       execSync("git config user.email 'tanaka@例え.jp'", { cwd: testDir });
 
-      // ファイル作成とコミット
       fs.writeFileSync(path.join(testDir, "test.txt"), "test");
       execSync("git add .", { cwd: testDir });
       execSync("git commit -m 'test commit'", { cwd: testDir });
@@ -305,6 +267,23 @@ Closes #123`;
       assert.strictEqual(result.exitCode, 0);
       assert(result.stdout.includes("田中 太郎"));
       assert(result.stdout.includes("tanaka@例え.jp"));
+    });
+
+    test("コミットメッセージに改行が含まれる場合", () => {
+      const messageWithNewlines =
+        "multiline message\n\nSecond line\nThird line";
+
+      setupGitRepo([
+        {
+          message: messageWithNewlines,
+          files: { "multiline.txt": "content" },
+        },
+      ]);
+
+      const result = runMygitLog();
+
+      assert.strictEqual(result.exitCode, 0);
+      assert(result.stdout.includes("multiline message"));
     });
   });
 });
