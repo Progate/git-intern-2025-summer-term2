@@ -5,6 +5,7 @@ import { FileTime, GitActor, IndexEntry } from "../../../src/models/types.js";
 import { CommitService } from "../../../src/services/commitService.js";
 import { MockLogger } from "../../../src/utils/logger.js";
 
+// Type definitions for test mocks - disabling strict type checking as these are test doubles
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
