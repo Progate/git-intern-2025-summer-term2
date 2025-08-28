@@ -50,7 +50,7 @@ npm run test:watch
 # Run AddService tests
 node --import tsx --test tests/unittest/services/addService.test.ts
 
-# Run LogService tests  
+# Run LogService tests
 node --import tsx --test tests/unittest/services/logService.test.ts
 
 # Run ReferenceRepository tests
@@ -115,7 +115,8 @@ node --import tsx --test $(find . -name "*.test.ts")
 ### Service Classes
 
 - **AddService**: Tests file categorization, blob creation, and index updates
-  - `normalizePath()`: Path normalization functionality  
+
+  - `normalizePath()`: Path normalization functionality
   - `fileExists()`: File existence checking
   - `categorizeFiles()`: File categorization logic (tracking/untracked/deleted)
   - Integration with ObjectRepository and IndexRepository
@@ -128,7 +129,7 @@ node --import tsx --test $(find . -name "*.test.ts")
 ### Repository Classes
 
 - **ObjectRepository**: Git object storage and retrieval
-- **IndexRepository**: Git index file management  
+- **IndexRepository**: Git index file management
 - **ConfigRepository**: Git configuration parsing
 
 ### Model Classes
@@ -156,7 +157,7 @@ The AddService tests use a sophisticated setup to test the complex file categori
 ### Key Test Scenarios
 
 1. **Path Normalization**: Converts absolute paths to relative paths correctly
-2. **File Existence**: Properly detects files vs directories vs non-existing paths  
+2. **File Existence**: Properly detects files vs directories vs non-existing paths
 3. **File Categorization**: Correctly categorizes files as:
    - `tracking`: Files already in index that exist in working directory
    - `untracked`: Files not in index but exist in working directory
@@ -165,15 +166,15 @@ The AddService tests use a sophisticated setup to test the complex file categori
 ### Test Architecture
 
 ```typescript
-describe('AddService', () => {
+describe("AddService", () => {
   // Setup temporary Git repository
   before(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'addservice-test-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "addservice-test-"));
     // Create .git structure and valid index file
   });
 
   // Test individual methods with private method access
-  it('should convert absolute path to relative path', async () => {
+  it("should convert absolute path to relative path", async () => {
     const service = await AddService.create(tempDir, mockLogger);
     const normalizePathMethod = (service as any).normalizePath.bind(service);
     // Test implementation
