@@ -167,7 +167,7 @@ export class Index {
     let offset = INDEX_HEADER_SIZE;
     for (let i = 0; i < header.entryCount; i++) {
       if (offset >= contentData.length) {
-        throw new Error(`Invalid index file: insufficient data for entry ${i}`);
+        throw new Error(`Invalid index file: insufficient data for entry ${String(i)}`);
       }
 
       const entry = Index.parseEntry(contentData, offset);
@@ -220,7 +220,7 @@ export class Index {
   private static parseEntry(data: Buffer, offset: number): IndexEntry {
     if (offset + INDEX_ENTRY_SIZE.FIXED_SIZE > data.length) {
       throw new Error(
-        `Invalid index file: entry data too short at offset ${offset}`,
+        `Invalid index file: entry data too short at offset ${String(offset)}`,
       );
     }
 
@@ -270,7 +270,7 @@ export class Index {
 
     if (pathEndPos > data.length) {
       throw new Error(
-        `Invalid index file: path extends beyond data at offset ${offset}`,
+        `Invalid index file: path extends beyond data at offset ${String(offset)}`,
       );
     }
 
