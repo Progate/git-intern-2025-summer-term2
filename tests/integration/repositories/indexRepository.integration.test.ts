@@ -86,9 +86,7 @@ describe("IndexRepository integration tests", () => {
   });
 
   test("write creates valid index file that git can read", async () => {
-    console.log(
-      "🧪 Test: write creates valid index file that git can read",
-    );
+    console.log("🧪 Test: write creates valid index file that git can read");
 
     // Arrange: 空のIndexRepositoryを作成してファイルエントリを追加
     repo = await IndexRepository.read(gitDir);
@@ -115,7 +113,7 @@ describe("IndexRepository integration tests", () => {
       });
       assert.ok(gitOutput.includes("manual.txt"));
       console.log("   Git ls-files output:", gitOutput.trim());
-    } catch (error) {
+    } catch {
       // Gitバージョンによってはエラーになる可能性があるが、
       // ファイルが作成されていることは確認できる
       const indexPath = path.join(gitDir, "index");
