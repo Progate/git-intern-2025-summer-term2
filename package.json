@@ -11,6 +11,7 @@
     "test:watch": "node --watch --import tsx --test $(find . -name \"*.test.ts\")",
     "test:integration": "node --import tsx --test tests/integration/**/*.test.ts",
     "test:unit": "node --import tsx --test tests/unittest/**/*.test.ts",
+    "test:e2e": "node --import tsx --test tests/e2e/**/*.test.ts",
     "lint:check": "eslint .",
     "lint:fix": "eslint --fix .",
     "format:check": "prettier --check .",
