@@ -156,8 +156,8 @@ export class Index {
    */
   static createFlags(
     nameLength: number,
-    stage: number = 0,
-    assumeValid: boolean = false,
+    stage = 0,
+    assumeValid = false,
   ): number {
     let flags = 0;
 
