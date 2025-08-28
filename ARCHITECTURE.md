@@ -67,7 +67,7 @@ src/
       - `ctime: FileTime`: 作成時刻
       - `mtime: FileTime`: 変更時刻
       - `dev: number`, `ino: number`, `mode: number`, `uid: number`, `gid: number`, `size: number`: ファイル統計情報
-      - `sha1: string`: SHA-1ハッシュ
+      - `objectId: string`: 対応するオブジェクトのSHA
       - `flags: number`: フラグ情報
       - `path: string`: ファイルパス
     - `interface FileTime`: 高精度時刻型
