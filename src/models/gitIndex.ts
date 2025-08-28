@@ -37,7 +37,7 @@ export class Index {
    * @param _entry インデックスエントリ
    */
   addEntry(_path: string, _entry: IndexEntry): void {
-    // TODO: 実装予定
+    this._entries.set(_path, _entry);
   }
 
   /**
@@ -46,8 +46,7 @@ export class Index {
    * @returns 削除されたかどうか
    */
   removeEntry(_path: string): boolean {
-    // TODO: 実装予定
-    return false;
+    return this._entries.delete(_path);
   }
 
   /**
@@ -56,8 +55,7 @@ export class Index {
    * @returns インデックスエントリまたはundefined
    */
   getEntry(_path: string): IndexEntry | undefined {
-    // TODO: 実装予定
-    return undefined;
+    return this._entries.get(_path);
   }
 
   /**
@@ -66,8 +64,17 @@ export class Index {
    */
   getAllEntries(): Array<IndexEntry> {
     const entries = Array.from(this._entries.values());
-    // パス名でソート (Gitインデックスの仕様)
-    return entries.sort((a, b) => a.path.localeCompare(b.path));
+    // Git仕様に従ってバイナリ順（memcmp相当）でソート
+    return entries.sort((a, b) => {
+      // バイナリ比較（UTF-8バイト順）
+      const pathA = a.path;
+      const pathB = b.path;
+
+      // 文字列比較でバイナリ順を実現
+      if (pathA < pathB) return -1;
+      if (pathA > pathB) return 1;
+      return 0;
+    });
   }
 
   /**
@@ -102,8 +109,22 @@ export class Index {
     _objectId: string,
     _stats: fs.Stats,
   ): IndexEntry {
-    // TODO: 実装予定
-    throw new Error("Not implemented");
+    // Git Index flags を正しく構成
+    const flags = Index.createFlags(_path.length);
+
+    return {
+      ctime: Index.timestampToFileTime(_stats.ctime),
+      mtime: Index.timestampToFileTime(_stats.mtime),
+      dev: _stats.dev,
+      ino: _stats.ino,
+      mode: _stats.mode,
+      uid: _stats.uid,
+      gid: _stats.gid,
+      size: _stats.size,
+      objectId: _objectId,
+      flags,
+      path: _path,
+    };
   }
 
   /**
@@ -112,8 +133,181 @@ export class Index {
    * @returns FileTime
    */
   static timestampToFileTime(_timestamp: Date | number): FileTime {
-    // TODO: 実装予定
-    return { seconds: 0, nanoseconds: 0 };
+    let timestampMs: number;
+
+    if (_timestamp instanceof Date) {
+      timestampMs = _timestamp.getTime();
+    } else {
+      timestampMs = _timestamp;
+    }
+
+    const seconds = Math.floor(timestampMs / 1000);
+    const nanoseconds = (timestampMs % 1000) * 1000000; // ミリ秒をナノ秒に変換
+
+    return { seconds, nanoseconds };
+  }
+
+  /**
+   * Git Index flagsフィールドを構成
+   * @param nameLength パス名の長さ
+   * @param stage ステージレベル (0-3)
+   * @param assumeValid assume-validフラグ
+   * @returns 構成されたflagsフィールド
+   */
+  static createFlags(
+    nameLength: number,
+    stage = 0,
+    assumeValid = false,
+  ): number {
+    let flags = 0;
+
+    // assume-valid flag (bit 15)
+    if (assumeValid) {
+      flags |= 0x8000;
+    }
+
+    // extended flag (bit 14) - version 2では常に0
+    // flags |= 0x4000; // 設定しない
+
+    // stage (bits 12-13)
+    flags |= (stage & 0x3) << 12;
+
+    // name length (bits 0-11)
+    flags |= Math.min(nameLength, 0x0fff);
+
+    return flags;
+  }
+
+  /**
+   * インデックスをバイナリデータにシリアライズ
+   * @returns バイナリデータ
+   */
+  serialize(): Buffer {
+    // ヘッダーをシリアライズ
+    const header = this.serializeHeader();
+
+    // エントリをパス名順にソートしてシリアライズ
+    const entries = this.getAllEntries();
+    const entryBuffers: Array<Buffer> = [];
+
+    for (const entry of entries) {
+      entryBuffers.push(this.serializeEntry(entry));
+    }
+
+    // ヘッダーとエントリを結合
+    const content = Buffer.concat([
+      header,
+      ...entryBuffers,
+    ] as ReadonlyArray<Uint8Array>);
+
+    // チェックサムを計算
+    const checksum = crypto
+      .createHash("sha1")
+      .update(content as Uint8Array)
+      .digest();
+
+    // 最終的なバイナリデータを返す
+    return Buffer.concat([content, checksum] as ReadonlyArray<Uint8Array>);
+  }
+
+  /**
+   * インデックスをファイルに書き込み
+   * @param indexPath インデックスファイルのパス
+   */
+  async toFile(indexPath: string): Promise<void> {
+    const data = this.serialize();
+    await fs.promises.writeFile(indexPath, data as Uint8Array);
+  }
+
+  /**
+   * インデックスヘッダーをシリアライズ
+   * @returns ヘッダーのバイナリデータ
+   */
+  private serializeHeader(): Buffer {
+    const header = Buffer.allocUnsafe(INDEX_HEADER_SIZE);
+    let offset = 0;
+
+    // 署名 "DIRC" (4バイト)
+    header.write(INDEX_SIGNATURE, offset, "ascii");
+    offset += 4;
+
+    // バージョン (4バイト)
+    header.writeUInt32BE(this._version, offset);
+    offset += 4;
+
+    // エントリ数 (4バイト)
+    header.writeUInt32BE(this.getEntryCount(), offset);
+
+    return header;
+  }
+
+  /**
+   * インデックスエントリをシリアライズ
+   * @param entry インデックスエントリ
+   * @returns エントリのバイナリデータ（パディング含む）
+   */
+  private serializeEntry(entry: IndexEntry): Buffer {
+    // パディングサイズを計算
+    const paddedSize = Index.calculatePaddedSize(entry.path.length);
+    const buffer = Buffer.alloc(paddedSize); // ゼロで初期化
+    let offset = 0;
+
+    // ctime (8バイト)
+    buffer.writeUInt32BE(entry.ctime.seconds, offset);
+    buffer.writeUInt32BE(entry.ctime.nanoseconds, offset + 4);
+    offset += 8;
+
+    // mtime (8バイト)
+    buffer.writeUInt32BE(entry.mtime.seconds, offset);
+    buffer.writeUInt32BE(entry.mtime.nanoseconds, offset + 4);
+    offset += 8;
+
+    // dev, ino, mode, uid, gid, size (各4バイト = 24バイト)
+    buffer.writeUInt32BE(entry.dev, offset);
+    buffer.writeUInt32BE(entry.ino, offset + 4);
+    buffer.writeUInt32BE(entry.mode, offset + 8);
+    buffer.writeUInt32BE(entry.uid, offset + 12);
+    buffer.writeUInt32BE(entry.gid, offset + 16);
+    buffer.writeUInt32BE(entry.size, offset + 20);
+    offset += 24;
+
+    // SHA-1 (20バイト)
+    if (entry.objectId.length !== 40) {
+      throw new Error(
+        `Invalid objectId: expected 40 characters, got ${entry.objectId.length.toString()}`,
+      );
+    }
+    const objectIdBuffer = Buffer.from(entry.objectId, "hex");
+    for (let i = 0; i < objectIdBuffer.length; i++) {
+      const byte = objectIdBuffer[i];
+      if (byte !== undefined) {
+        buffer[offset + i] = byte;
+      }
+    }
+    offset += 20;
+
+    // flags (2バイト)
+    buffer.writeUInt16BE(entry.flags, offset);
+    offset += 2;
+
+    // パス名 + NULL終端
+    buffer.write(entry.path, offset, "utf8");
+    // NULL終端はBuffer.alloc()で既にゼロクリアされているので明示的な設定不要
+
+    return buffer;
+  }
+
+  /**
+   * パス名の長さからパディング後のエントリサイズを計算
+   * @param pathLength パス名の長さ
+   * @returns パディング後のサイズ
+   */
+  private static calculatePaddedSize(pathLength: number): number {
+    const entrySize = INDEX_ENTRY_SIZE.FIXED_SIZE + pathLength + 1; // +1 for null terminator
+    return (
+      Math.ceil(entrySize / INDEX_ENTRY_SIZE.ALIGNMENT) *
+      INDEX_ENTRY_SIZE.ALIGNMENT
+    );
   }
 
   /**
