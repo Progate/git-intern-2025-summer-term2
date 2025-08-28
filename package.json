@@ -17,7 +17,8 @@
     "format:check": "prettier --check .",
     "format:fix": "prettier --write .",
     "build": "tsc",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test:add:manual": "node scripts/manual-test-add.mjs"
   },
   "license": "Apache-2.0",
   "dependencies": {
