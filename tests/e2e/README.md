@@ -75,6 +75,31 @@ E2Eテストは、実際のユーザーの使い方と同じようにコマン�
      - Git操作: `git init` → ファイル作成・`git add .` → `git commit -m 'multiline message\n\nSecond line\nThird line'`
      - テスト内容: 改行を含むコミットメッセージが正しく表示されることを確認
 
+### mygit commit コマンド
+
+各テストケースは、一時ディレクトリ（tmpディレクトリ）に作成されたGitリポジトリに対して特定のGit操作を実行した状態で`mygit commit <message>`を実行し、その挙動をテストしています。
+
+1. **正常系**
+
+   - **単一ファイルのコミット作成（フラット構造）**
+     - Git操作: `git init` → ユーザー設定 → ファイル作成・`git add README.md` → `mygit commit <message>`
+     - テスト内容: 単一ファイルがステージングされた状態でコミットが正しく作成されることを確認
+   - **複数ファイルのコミット作成（フラット構造）**
+     - Git操作: `git init` → ユーザー設定 → 複数ファイル作成・`git add .` → `mygit commit <message>`
+     - テスト内容: 複数ファイルがステージングされた状態でコミットが正しく作成され、全ファイルがコミットに含まれることを確認
+
+2. **エラー系**
+
+   - **空のコミットメッセージを指定した場合**
+     - Git操作: `git init` → ユーザー設定 → ファイル作成・`git add .`
+     - テスト内容: 空のコミットメッセージでコミット実行時のエラーハンドリングを確認
+   - **ステージされたファイルが存在しない場合**
+     - Git操作: `git init` → ユーザー設定 → ファイル作成（`git add`なし）
+     - テスト内容: ステージング状態のファイルがない場合のエラーハンドリングを確認
+   - **ユーザー設定が未設定の場合**
+     - Git操作: `git init` → ユーザー設定削除 → ファイル作成・`git add .`
+     - テスト内容: `user.name`または`user.email`が設定されていない場合のエラーハンドリングを確認
+
 ## 実行方法
 
 ### 前提条件
@@ -87,27 +112,29 @@ E2Eテストは、実際のユーザーの使い方と同じようにコマン�
 
 ```bash
 # 特定のテストファイルを実行
-npx jest tests/e2e/log.e2e.test.ts
+npm test tests/e2e/log.e2e.test.ts
+npm test tests/e2e/commit.e2e.test.ts
 
-# 特定のテストケースを実行
-npx jest tests/e2e/log.e2e.test.ts -t "複数のコミット履歴を表示"
+# 特定のテストケースを実行（Node.js test runnerではテストケース指定は--grep使用）
+node --import tsx --test tests/e2e/log.e2e.test.ts --grep "複数のコミット履歴を表示"
+node --import tsx --test tests/e2e/commit.e2e.test.ts --grep "should create commit with single file"
 ```
 
 ### 全E2Eテスト実行
 
 ```bash
 # e2eディレクトリ内の全テストを実行
-npx jest tests/e2e/
+npm run test:e2e
 
-# カバレッジレポートも生成
-npx jest tests/e2e/ --coverage
+# または直接実行
+node --import tsx --test tests/e2e/**/*.test.ts
 ```
 
 ### 詳細ログ付き実行
 
 ```bash
 # デバッグ情報を含めて実行
-npx jest tests/e2e/ --verbose
+node --import tsx --test tests/e2e/**/*.test.ts --reporter=verbose
 ```
 
 ## テスト環境
