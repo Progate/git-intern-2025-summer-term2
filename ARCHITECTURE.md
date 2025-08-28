@@ -216,23 +216,45 @@ src/
 
 ## 5. シーケンス解説 (Command Execution Flow)
 
-### `my-git add <file>` の実行フロー
+### `my-git add <file>` の実行フロー（実装計画）
 
 `my-git add README.md` が実行された際の、主要なメソッド間のデータの流れです。
 
 1.  **`commands/add.ts -> addCommand(files)`**
 
     - **受け取り**: `files: string[]` (例: `['README.md']`)
-    - **処理**: 対応するサービス（未実装）を呼び出します。
+    - **処理**: `AddService`のインスタンスを作成し、`addService.execute(files)` を呼び出します。
 
-### `my-git commit <message>` の実行フロー
+2.  **`services/AddService.ts -> execute(files)`**（実装予定）
+    - **処理**:
+      1.  各ファイルの存在確認とワーキングディレクトリからの相対パス計算を行います。
+      2.  ファイル内容を読み取り、`Blob`オブジェクトを作成します。
+      3.  `objectRepo.write(blob)` でBlobオブジェクトをオブジェクトDBに保存し、SHAを取得します。
+      4.  ファイルの統計情報（`fs.Stats`）を取得します。
+      5.  `indexRepo.add(filepath, sha, stats)` でインデックスにエントリを追加します。
+      6.  `indexRepo.write()` でインデックスファイルを更新します。
+    - **→ 返り値**: `Promise<void>`
+
+### `my-git commit <message>` の実行フロー（実装計画）
 
 `my-git commit "Initial commit"` が実行された際のフローです。
 
 1.  **`commands/commit.ts -> commitCommand(message)`**
 
     - **受け取り**: `message: string` (例: `"Initial commit"`)
-    - **処理**: 対応するサービス（未実装）を呼び出します。
+    - **処理**: `CommitService`のインスタンスを作成し、`commitService.execute(message)` を呼び出します。
+
+2.  **`services/CommitService.ts -> execute(message)`**（実装予定）
+    - **処理**:
+      1.  `indexRepo.getAllEntries()` でインデックスから全エントリを取得します。
+      2.  インデックスエントリからディレクトリ構造を構築し、`Tree`オブジェクトを作成します。
+      3.  `objectRepo.write(tree)` で各TreeオブジェクトをオブジェクトDBに保存し、ルートツリーのSHAを取得します。
+      4.  `refRepo.resolveHead()` で現在のHEADコミット（親コミット）のSHAを取得します。
+      5.  `configRepo.getUserConfig()` で作者・コミッター情報を取得します。
+      6.  `Commit`オブジェクトを作成し、必要な情報（ツリーSHA、親コミットSHA、作者情報、メッセージ）を設定します。
+      7.  `objectRepo.write(commit)` でCommitオブジェクトをオブジェクトDBに保存し、コミットSHAを取得します。
+      8.  `refRepo.updateHead(commitSha)` でHEADが指すブランチの参照を新しいコミットに更新します。
+    - **→ 返り値**: `Promise<string>` (新しいコミットのSHA)
 
 ### `my-git log` の実行フロー
 
