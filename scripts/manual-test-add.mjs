@@ -263,6 +263,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error("❌ mygit command not found. Please run:");
     console.error("   npm run build");
     console.error("   npm -g install .");
+    console.error(`   Error: ${err.message}`);
     process.exit(1);
   }
 

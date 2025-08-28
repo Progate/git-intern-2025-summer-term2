@@ -46,6 +46,7 @@ describe("AddService", () => {
       const normalizePathMethod = (service as any).normalizePath.bind(service);
 
       const absolutePath = path.join(tempDir, "test.txt");
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = normalizePathMethod(absolutePath);
 
       assert.strictEqual(result, "test.txt");
@@ -57,6 +58,7 @@ describe("AddService", () => {
       const normalizePathMethod = (service as any).normalizePath.bind(service);
 
       const relativePath = "src/test.ts";
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = normalizePathMethod(relativePath);
 
       assert.strictEqual(result, "src/test.ts");
@@ -68,6 +70,7 @@ describe("AddService", () => {
       const normalizePathMethod = (service as any).normalizePath.bind(service);
 
       const absolutePath = path.join(tempDir, "src", "models", "test.ts");
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = normalizePathMethod(absolutePath);
 
       assert.strictEqual(result, path.join("src", "models", "test.ts"));
@@ -84,6 +87,7 @@ describe("AddService", () => {
       const testFile = "test.txt";
       await fs.writeFile(path.join(tempDir, testFile), "test content");
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = await fileExistsMethod(testFile);
       assert.strictEqual(result, true);
     });
@@ -93,6 +97,7 @@ describe("AddService", () => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const fileExistsMethod = (service as any).fileExists.bind(service);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = await fileExistsMethod("non-existing.txt");
       assert.strictEqual(result, false);
     });
@@ -106,6 +111,7 @@ describe("AddService", () => {
       const testDir = "testdir";
       await fs.mkdir(path.join(tempDir, testDir));
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = await fileExistsMethod(testDir);
       assert.strictEqual(result, false);
     });
@@ -122,11 +128,16 @@ describe("AddService", () => {
       // テスト用ファイルを作成
       await fs.writeFile(path.join(tempDir, "new-file.txt"), "new content");
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = await categorizeFilesMethod(["new-file.txt"]);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.untracked.length, 1);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.untracked[0], "new-file.txt");
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.tracking.length, 0);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.deleted.length, 0);
     });
 
@@ -138,6 +149,7 @@ describe("AddService", () => {
       );
 
       await assert.rejects(async () => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         await categorizeFilesMethod(["non-existing.txt"]);
       }, /pathspec 'non-existing.txt' did not match any files/);
     });
@@ -153,10 +165,14 @@ describe("AddService", () => {
       await fs.writeFile(path.join(tempDir, "file1.txt"), "content1");
       await fs.writeFile(path.join(tempDir, "file2.txt"), "content2");
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
       const result = await categorizeFilesMethod(["file1.txt", "file2.txt"]);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.untracked.length, 2);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.tracking.length, 0);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       assert.strictEqual(result.deleted.length, 0);
     });
   });
