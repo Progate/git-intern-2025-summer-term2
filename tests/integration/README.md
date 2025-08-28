@@ -71,7 +71,100 @@ node --import tsx --test tests/integration/**/*.test.ts
 - **期待される戻り値**: `false`
 - **検証内容**: 戻り値が厳密に`false`である
 
-### 2. ReferenceRepository Integration Tests (`tests/integration/repositories/referenceRepository.integration.test.ts`)
+### 2. IndexRepository Integration Tests (`tests/integration/repositories/indexRepository.integration.test.ts`)
+
+`src/repositories/indexRepository.ts`の以下のメソッドをテストします：
+
+#### `read returns empty IndexRepository when no index file exists`
+
+- **テスト内容**: インデックスファイルが存在しない場合に空のIndexRepositoryを返す
+- **入力**:
+  - `.git`ディレクトリパス
+  - インデックスファイル（`.git/index`）が存在しない状態
+- **探査対象**: 存在しない`.git/index`ファイル
+- **期待される戻り値**: 空のIndexRepositoryインスタンス
+- **検証内容**:
+  - エントリ数が0である
+  - `isEmpty()`がtrueを返す
+
+#### `read returns IndexRepository with entries after git add`
+
+- **テスト内容**: `git add`後のインデックスを正しく読み込む
+- **入力**:
+  - `test.txt`ファイルを`git add`で追加済み
+  - `.git/index`ファイルが存在する状態
+- **探査対象**: `.git/index`ファイルの内容
+- **期待される戻り値**: エントリを含むIndexRepositoryインスタンス
+- **検証内容**:
+  - エントリ数が1である
+  - `hasEntry("test.txt")`がtrueを返す
+  - エントリのパス、サイズ、オブジェクトIDが正しい
+  - オブジェクトIDが40文字の16進数である
+
+#### `write creates valid index file that git can read`
+
+- **テスト内容**: IndexRepositoryが書き込んだファイルをGitが正しく認識する
+- **入力**:
+  - 手動で作成したIndexRepositoryエントリ
+  - ファイル統計情報とSHA-1ハッシュ
+- **探査対象**: IndexRepositoryが生成した`.git/index`ファイル
+- **期待される戻り値**: Gitコマンドで認識可能なインデックスファイル
+- **検証内容**:
+  - `git ls-files --cached`でファイルが表示される
+  - インデックスファイルが正常に作成される
+
+#### `add and remove operations work correctly`
+
+- **テスト内容**: エントリの追加・削除操作が正しく動作する
+- **入力**:
+  - 複数のテストファイル（`file1.txt`, `file2.txt`, `file3.txt`）
+  - 各ファイルの統計情報とSHA-1ハッシュ
+- **探査対象**: IndexRepositoryの内部状態
+- **期待される戻り値**: 正しく管理されたエントリ状態
+- **検証内容**:
+  - 全ファイル追加後にエントリ数が3である
+  - 各ファイルが`hasEntry()`で確認できる
+  - 1ファイル削除後にエントリ数が2である
+  - 削除されたファイルが`hasEntry()`でfalseを返す
+
+#### `getAllEntries returns sorted entries`
+
+- **テスト内容**: エントリがパス名順にソートされて返される
+- **入力**:
+  - 意図的に順番を混ぜたファイル（`zebra.txt`, `apple.txt`, `banana.txt`）
+- **探査対象**: `getAllEntries()`メソッドの戻り値
+- **期待される戻り値**: パス名順にソートされたエントリ配列
+- **検証内容**:
+  - エントリ数が3である
+  - 1番目のエントリのパスが`apple.txt`である
+  - 2番目のエントリのパスが`banana.txt`である
+  - 3番目のエントリのパスが`zebra.txt`である
+
+#### `read throws error when index file is corrupted`
+
+- **テスト内容**: 破損したインデックスファイルに対してエラーを投げる
+- **入力**:
+  - 不正なデータが書き込まれた`.git/index`ファイル
+- **探査対象**: 破損した`.git/index`ファイル
+- **期待される戻り値**: `IndexRepositoryError`例外（エラーコード: `"READ_ERROR"`）
+- **検証内容**:
+  - `IndexRepositoryError`のインスタンスが投げられる
+  - エラーコードが`"READ_ERROR"`である
+
+#### `roundtrip: write then read preserves data`
+
+- **テスト内容**: 書き込み→読み込みのラウンドトリップでデータが保持される
+- **入力**:
+  - `roundtrip.txt`ファイルとそのメタデータ
+  - 特定のSHA-1ハッシュ
+- **探査対象**: ファイル書き込み後の再読み込み結果
+- **期待される戻り値**: 元のデータと同じ内容のIndexRepository
+- **検証内容**:
+  - 再読み込み後のエントリ数が1である
+  - ファイルパス、オブジェクトID、サイズが保持されている
+  - 全ての属性が元の値と一致する
+
+### 3. ReferenceRepository Integration Tests (`tests/integration/repositories/referenceRepository.integration.test.ts`)
 
 `src/repositories/referenceRepository.ts`の以下のメソッドをテストします：
 
@@ -151,6 +244,18 @@ node --import tsx --test tests/integration/**/*.test.ts
 ```bash
 $ node --import tsx --test tests/integration/**/*.test.ts
 
+Created test git repository at: /tmp/git-index-integration-test-xyz123
+🧪 Test: read returns empty IndexRepository when no index file exists
+   ✅ Test passed - empty IndexRepository created
+Cleaned up test repository: /tmp/git-index-integration-test-xyz123
+
+Created test git repository at: /tmp/git-index-integration-test-abc456
+🧪 Test: read returns IndexRepository with entries after git add
+   ✅ Test passed - IndexRepository read entries correctly
+Cleaned up test repository: /tmp/git-index-integration-test-abc456
+
+✔ IndexRepository integration tests (830ms)
+
 Created test git repository at: /tmp/git-integration-test-xyz123
 🧪 Test: resolveHead returns correct SHA after initial commit
    Expected SHA from git: cce396ca7fc540ac47fcc83ee5613331be84c501
@@ -158,11 +263,11 @@ Created test git repository at: /tmp/git-integration-test-xyz123
    ✅ Test passed - resolveHead returned correct SHA
 Cleaned up test repository: /tmp/git-integration-test-xyz123
 
-✔ ReferenceRepository integration tests (192ms)
-✔ gitUtils integration tests (73ms)
-ℹ tests 9
-ℹ suites 2
-ℹ pass 9
+✔ ReferenceRepository integration tests (871ms)
+✔ gitUtils integration tests (147ms)
+ℹ tests 16
+ℹ suites 3
+ℹ pass 16
 ℹ fail 0
 ```
 
