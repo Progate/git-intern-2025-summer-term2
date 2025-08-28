@@ -38,12 +38,6 @@ export const mygit = async (argv: Array<string>): Promise<void> => {
       );
       process.exit(1);
     }
-
-    if (message.trim() === "") {
-      console.error("Error: commit message cannot be empty");
-      process.exit(1);
-    }
-
     await commitCommand(message);
   } else {
     console.log(hello());

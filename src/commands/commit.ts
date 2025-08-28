@@ -5,6 +5,7 @@ import { IndexRepository } from "../repositories/indexRepository.js";
 import { ObjectRepository } from "../repositories/objectRepository.js";
 import { ReferenceRepository } from "../repositories/referenceRepository.js";
 import { CommitService } from "../services/commitService.js";
+import { findGitDirectory } from "../utils/gitUtils.js";
 
 /**
  * commitコマンドの実装
@@ -13,8 +14,10 @@ import { CommitService } from "../services/commitService.js";
  */
 export async function commitCommand(message: string): Promise<void> {
   try {
-    const workDir = process.cwd();
-    const gitDir = path.join(workDir, ".git");
+    const gitDir = await findGitDirectory();
+    if (!gitDir) {
+      throw new Error("Not a git repository");
+    }
 
     // 必要なRepositoryを直接インスタンス化
     const indexRepo = await IndexRepository.read(gitDir);
