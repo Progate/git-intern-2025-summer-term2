@@ -85,10 +85,18 @@ export class ConfigRepository {
 
     return {
       compression: compression
-        ? parseInt(compression, 10)
+        ? (() => {
+            const parsed = parseInt(compression, 10);
+            return isNaN(parsed) ? defaults.compression : parsed;
+          })()
         : defaults.compression,
       fileMode: fileMode
-        ? fileMode.toLowerCase() === "true"
+        ? (() => {
+            const lower = fileMode.toLowerCase();
+            if (lower === "true") return true;
+            if (lower === "false") return false;
+            return defaults.fileMode; // 不正な値の場合はデフォルト値
+          })()
         : defaults.fileMode,
     };
   }
