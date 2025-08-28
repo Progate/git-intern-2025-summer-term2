@@ -64,8 +64,17 @@ export class Index {
    */
   getAllEntries(): Array<IndexEntry> {
     const entries = Array.from(this._entries.values());
-    // パス名でソート (Gitインデックスの仕様)
-    return entries.sort((a, b) => a.path.localeCompare(b.path));
+    // Git仕様に従ってバイナリ順（memcmp相当）でソート
+    return entries.sort((a, b) => {
+      // バイナリ比較（UTF-8バイト順）
+      const pathA = a.path;
+      const pathB = b.path;
+
+      // 文字列比較でバイナリ順を実現
+      if (pathA < pathB) return -1;
+      if (pathA > pathB) return 1;
+      return 0;
+    });
   }
 
   /**
@@ -100,6 +109,9 @@ export class Index {
     _objectId: string,
     _stats: fs.Stats,
   ): IndexEntry {
+    // Git Index flags を正しく構成
+    const flags = Index.createFlags(_path.length);
+
     return {
       ctime: Index.timestampToFileTime(_stats.ctime),
       mtime: Index.timestampToFileTime(_stats.mtime),
@@ -110,7 +122,7 @@ export class Index {
       gid: _stats.gid,
       size: _stats.size,
       objectId: _objectId,
-      flags: Math.min(_path.length, 0x0fff), // パス名の長さ（最大12ビット）
+      flags,
       path: _path,
     };
   }
@@ -133,6 +145,37 @@ export class Index {
     const nanoseconds = (timestampMs % 1000) * 1000000; // ミリ秒をナノ秒に変換
 
     return { seconds, nanoseconds };
+  }
+
+  /**
+   * Git Index flagsフィールドを構成
+   * @param nameLength パス名の長さ
+   * @param stage ステージレベル (0-3)
+   * @param assumeValid assume-validフラグ
+   * @returns 構成されたflagsフィールド
+   */
+  static createFlags(
+    nameLength: number,
+    stage: number = 0,
+    assumeValid: boolean = false,
+  ): number {
+    let flags = 0;
+
+    // assume-valid flag (bit 15)
+    if (assumeValid) {
+      flags |= 0x8000;
+    }
+
+    // extended flag (bit 14) - version 2では常に0
+    // flags |= 0x4000; // 設定しない
+
+    // stage (bits 12-13)
+    flags |= (stage & 0x3) << 12;
+
+    // name length (bits 0-11)
+    flags |= Math.min(nameLength, 0x0fff);
+
+    return flags;
   }
 
   /**
