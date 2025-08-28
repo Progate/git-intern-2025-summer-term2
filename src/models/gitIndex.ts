@@ -167,7 +167,9 @@ export class Index {
     let offset = INDEX_HEADER_SIZE;
     for (let i = 0; i < header.entryCount; i++) {
       if (offset >= contentData.length) {
-        throw new Error(`Invalid index file: insufficient data for entry ${String(i)}`);
+        throw new Error(
+          `Invalid index file: insufficient data for entry ${String(i)}`,
+        );
       }
 
       const entry = Index.parseEntry(contentData, offset);
