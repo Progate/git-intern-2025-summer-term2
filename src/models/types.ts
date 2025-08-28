@@ -24,6 +24,8 @@ export interface IndexHeader {
   signature: string; // "DIRC"
   version: number; // バージョン番号 (2)
   entryCount: number; // エントリ数
+}
+
 /** Gitオブジェクトの種別を表す型 */
 export type GitObjectType = "blob" | "tree" | "commit";
 
