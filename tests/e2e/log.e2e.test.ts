@@ -197,8 +197,12 @@ Closes #123`;
 
       const result = runMygitLog();
 
+      // 終了コードの確認
       assert.notStrictEqual(result.exitCode, 0);
+
+      // より具体的なエラーメッセージの確認
       assert(result.stderr.includes("Error:"));
+      assert(result.stderr.includes("not a git repository"));
     });
 
     test("空のリポジトリの場合（コミットが存在しない）", () => {
