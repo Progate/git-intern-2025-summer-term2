@@ -42,7 +42,7 @@ describe("AddService", () => {
       const service = await AddService.create(tempDir, mockLogger);
 
       // プライベートメソッドにアクセスするためにanyでキャスト
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const normalizePathMethod = (service as any).normalizePath.bind(service);
 
       const absolutePath = path.join(tempDir, "test.txt");
@@ -53,7 +53,7 @@ describe("AddService", () => {
 
     it("should keep relative path as is", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const normalizePathMethod = (service as any).normalizePath.bind(service);
 
       const relativePath = "src/test.ts";
@@ -64,7 +64,7 @@ describe("AddService", () => {
 
     it("should handle nested paths correctly", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const normalizePathMethod = (service as any).normalizePath.bind(service);
 
       const absolutePath = path.join(tempDir, "src", "models", "test.ts");
@@ -77,7 +77,7 @@ describe("AddService", () => {
   describe("fileExists", () => {
     it("should return true for existing file", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const fileExistsMethod = (service as any).fileExists.bind(service);
 
       // テスト用ファイルを作成
@@ -90,7 +90,7 @@ describe("AddService", () => {
 
     it("should return false for non-existing file", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const fileExistsMethod = (service as any).fileExists.bind(service);
 
       const result = await fileExistsMethod("non-existing.txt");
@@ -99,7 +99,7 @@ describe("AddService", () => {
 
     it("should return false for directory", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const fileExistsMethod = (service as any).fileExists.bind(service);
 
       // テスト用ディレクトリを作成
@@ -114,7 +114,7 @@ describe("AddService", () => {
   describe("categorizeFiles", () => {
     it("should categorize untracked files correctly", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const categorizeFilesMethod = (service as any).categorizeFiles.bind(
         service,
       );
@@ -132,7 +132,7 @@ describe("AddService", () => {
 
     it("should throw error for non-existing files not in index", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const categorizeFilesMethod = (service as any).categorizeFiles.bind(
         service,
       );
@@ -144,7 +144,7 @@ describe("AddService", () => {
 
     it("should handle multiple files correctly", async () => {
       const service = await AddService.create(tempDir, mockLogger);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
       const categorizeFilesMethod = (service as any).categorizeFiles.bind(
         service,
       );
