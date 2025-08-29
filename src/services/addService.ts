@@ -96,7 +96,7 @@ export class AddService {
           // ディレクトリ内のファイルを再帰的に収集
           const filesInDir = await this.collectFilesRecursively(file);
           this.logger.info(
-            `Found ${filesInDir.length} files in directory: ${file}`,
+            `Found ${filesInDir.length.toString()} files in directory: ${file}`,
           );
 
           // 収集したファイルを順次処理

@@ -341,7 +341,9 @@ describe("AddService", () => {
 
       // 存在しないディレクトリを指定
       await assert.rejects(
-        async () => { await service.execute(["non-existent-dir"]); },
+        async () => {
+          await service.execute(["non-existent-dir"]);
+        },
         /Failed to process 'non-existent-dir'/,
         "Should throw error for non-existent directory",
       );
