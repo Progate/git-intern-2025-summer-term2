@@ -97,7 +97,9 @@ export class AddService {
     // インデックスを一括更新
     await this.updateIndexFromResults(processingResults);
 
-    this.logger.info(`Add operation completed successfully. Processed ${processingResults.length.toString()} files.`);
+    this.logger.info(
+      `Add operation completed successfully. Processed ${processingResults.length.toString()} files.`,
+    );
   }
 
   /**
@@ -115,7 +117,9 @@ export class AddService {
    * @param file ファイルパス
    * @returns 処理結果、削除対象ファイルの場合はundefined
    */
-  private async processFile(file: string): Promise<FileProcessingResult | undefined> {
+  private async processFile(
+    file: string,
+  ): Promise<FileProcessingResult | undefined> {
     // ファイルパスを正規化
     const normalizedPath = this.normalizePath(file);
 
@@ -151,7 +155,9 @@ export class AddService {
     const sha = await this.objectRepo.write(blob);
 
     const operation = inIndex ? "update" : "add";
-    this.logger.debug(`File processed for ${operation}: ${normalizedPath} -> ${sha}`);
+    this.logger.debug(
+      `File processed for ${operation}: ${normalizedPath} -> ${sha}`,
+    );
 
     return {
       filePath: normalizedPath,
@@ -165,17 +171,23 @@ export class AddService {
    * 処理結果からインデックスを一括更新
    * @param results ファイル処理結果の配列
    */
-  private async updateIndexFromResults(results: Array<FileProcessingResult>): Promise<void> {
+  private async updateIndexFromResults(
+    results: Array<FileProcessingResult>,
+  ): Promise<void> {
     try {
       for (const result of results) {
         switch (result.operation) {
           case "add":
           case "update":
             if (!result.sha || !result.stats) {
-              throw new Error(`Missing SHA or stats for file: ${result.filePath}`);
+              throw new Error(
+                `Missing SHA or stats for file: ${result.filePath}`,
+              );
             }
             this.indexRepo.add(result.filePath, result.sha, result.stats);
-            this.logger.debug(`${result.operation} index entry for ${result.filePath}: ${result.sha}`);
+            this.logger.debug(
+              `${result.operation} index entry for ${result.filePath}: ${result.sha}`,
+            );
             break;
 
           case "delete":
@@ -192,14 +204,19 @@ export class AddService {
       // インデックスファイルを保存
       await this.indexRepo.write();
 
-      const addCount = results.filter(r => r.operation === "add" || r.operation === "update").length;
-      const deleteCount = results.filter(r => r.operation === "delete").length;
-      
+      const addCount = results.filter(
+        (r) => r.operation === "add" || r.operation === "update",
+      ).length;
+      const deleteCount = results.filter(
+        (r) => r.operation === "delete",
+      ).length;
+
       this.logger.info(
-        `Updated index with ${addCount.toString()} additions/updates and ${deleteCount.toString()} deletions`
+        `Updated index with ${addCount.toString()} additions/updates and ${deleteCount.toString()} deletions`,
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to update index: ${errorMessage}`);
     }
   }
