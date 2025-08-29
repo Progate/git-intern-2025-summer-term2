@@ -23,10 +23,16 @@ export class Tree extends GitObject {
   getContent(): Buffer {
     const buffers: Array<Buffer> = [];
 
-    // Git仕様に従ってエントリを名前で辞書順にソート
-    const sortedEntries = [...this.entries].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
+    // Git仕様に従ってエントリをソート（ディレクトリは名前+'/'でソート）
+    const sortedEntries = [...this.entries].sort((a, b) => {
+      // Gitのtree sortingルール: ディレクトリは名前に'/'を付けた状態でソート
+      const nameA = a.mode.startsWith("040000") ? a.name + "/" : a.name;
+      const nameB = b.mode.startsWith("040000") ? b.name + "/" : b.name;
+
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
 
     for (const entry of sortedEntries) {
       // モードとファイル名を結合
