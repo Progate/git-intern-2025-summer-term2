@@ -52,16 +52,6 @@ export interface GitActor {
   timestamp: Date;
 }
 
-/** addコマンドでのファイル分類結果 */
-export interface FileCategorization {
-  /** 作業ディレクトリに存在してindexに存在するファイル */
-  tracking: Array<string>;
-  /** 作業ディレクトリに存在してindexに存在しないファイル */
-  untracked: Array<string>;
-  /** 作業ディレクトリに存在せずindexに存在するファイル */
-  deleted: Array<string>;
-}
-
 /** ディレクトリ階層を表現するTreeNodeインターフェース */
 export interface TreeNode {
   /** ディレクトリ/ファイル名 */

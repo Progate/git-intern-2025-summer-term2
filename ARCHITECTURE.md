@@ -31,18 +31,18 @@ src/
 │   ├── constants.ts           # Git index関連の定数
 │   └── types.ts               # 共有される型定義
 ├── repositories/              # データ永続化層
-│   ├── objectRepository.ts
-│   ├── indexRepository.ts
-│   ├── referenceRepository.ts
+│   ├── objectRepository.ts    # Gitオブジェクト(.git/objects)の読み書き
+│   ├── indexRepository.ts     # Gitインデックス(.git/index)の読み書き
+│   ├── referenceRepository.ts # Git参照(.git/HEAD, refs/)の読み書き
 │   └── configRepository.ts    # 設定ファイル(.git/config)の読み書き
 ├── services/                  # アプリケーション/ビジネスロジック層
-│   ├── gitService.ts          # 汎用的なGit操作（未実装）
-│   ├── logService.ts          # logコマンドの専用ビジネスロジック
-│   └── statusService.ts       # 状態分析などのドメインサービス（未実装）
+│   ├── addService.ts          # addコマンドの専用ビジネスロジック（実装済み）
+│   ├── commitService.ts       # commitコマンドの専用ビジネスロジック（実装済み）
+│   └── logService.ts          # logコマンドの専用ビジネスロジック（実装済み）
 ├── commands/                  # UI層
-│   ├── add.ts
-│   ├── commit.ts
-│   └── log.ts
+│   ├── add.ts                 # addコマンドの実装
+│   ├── commit.ts              # commitコマンドの実装
+│   └── log.ts                 # logコマンドの実装
 └── utils/                     # 共通ユーティリティ
     ├── logger.ts              # ログ機能
     └── gitUtils.ts            # Git関連のユーティリティ
@@ -58,7 +58,6 @@ src/
   - **役割**: プロジェクト全体で共有される型定義を管理します。
   - **主な要素**:
     - `type GitObjectType = 'blob' | 'tree' | 'commit';`
-    - `type WorkdirStatus = 'untracked' | 'modified' | 'deleted' | 'unmodified';`
     - `interface TreeEntry`:
       - `mode: string`: ファイルモード
       - `name: string`: ファイル/ディレクトリ名
@@ -81,6 +80,11 @@ src/
       - `signature: string`: ファイル署名（"DIRC"）
       - `version: number`: バージョン番号
       - `entryCount: number`: エントリ数
+    - `interface TreeNode`: ディレクトリ階層を表現するインターフェース
+      - `name: string`: ディレクトリ/ファイル名
+      - `children: Map<string, TreeNode>`: 子ノード（ディレクトリの場合）
+      - `entry?: IndexEntry`: インデックスエントリ（ファイルの場合）
+      - `type: "directory" | "file"`: ノードの種別
 
 - **`gitObject.ts`**
 
@@ -125,9 +129,9 @@ src/
   - **主な要素**:
     - `INDEX_SIGNATURE`: インデックスファイルの署名（"DIRC"）
     - `INDEX_VERSION`: サポートするインデックスバージョン（2）
-    - `FILE_MODES`: ファイルモードの定数（通常ファイル、実行可能ファイル、シンボリックリンク等）
-    - `INDEX_ENTRY_FLAGS`: エントリフラグの定数（assume-valid、ステージレベル等）
-    - `INDEX_ENTRY_SIZE`: エントリサイズ関連の定数
+    - `INDEX_ENTRY_SIZE`: エントリサイズ関連の定数（固定サイズ、アライメント等）
+    - `INDEX_HEADER_SIZE`: インデックスヘッダーのサイズ
+    - `INDEX_CHECKSUM_SIZE`: チェックサムのサイズ
 
 ### `src/repositories/`
 
@@ -160,37 +164,45 @@ src/
 
 各Gitコマンドに対応する専用のサービスクラスを配置し、コマンドごとのビジネスロジックを実装します。
 
-- **`gitService.ts`**（未実装）
+- **`addService.ts`**（実装済み）
 
-  - **役割**: 汎用的なGitの機能（ユースケース）を実装します。
+  - **役割**: `add`コマンドのビジネスロジックに特化した専用サービスです。ディレクトリの再帰的処理をサポートします。
   - **主なメソッド**:
-    - `constructor(workDir: string)`: 内部で各`Repository`をインスタンス化します。
-    - `add(filepath: string): Promise<void>`: ファイルをステージングします。
-    - `commit(message: string, author: GitActor): Promise<string>`: 新しいコミットを作成し、そのSHAを返します。
+    - `static async create(workDir?: string, logger?: Logger): Promise<AddService>`: ファクトリーメソッド。必要なRepositoryを初期化してインスタンスを作成します。
+    - `async execute(files: Array<string>): Promise<void>`: ファイル/ディレクトリをステージングします。ディレクトリの場合は再帰的に処理します。
+    - `private async processFile(filePath: string): Promise<FileProcessingResult | null>`: 個別ファイルの処理（Blob作成、インデックス更新）。
+    - `private async collectFilesRecursively(dirPath: string): Promise<Array<string>>`: ディレクトリ内のファイルを再帰的に収集します。
+    - `private async updateIndexFromResults(results: Array<FileProcessingResult>): Promise<void>`: 処理結果をもとにインデックスを一括更新します。
 
-- **`logService.ts`**
+- **`commitService.ts`**（実装済み）
+
+  - **役割**: `commit`コマンドのビジネスロジックに特化した専用サービスです。階層的なディレクトリ構造をサポートします。
+  - **主なメソッド**:
+    - `constructor(indexRepo, objectRepo, referenceRepo, configRepo, logger?)`: 必要なRepositoryインスタンスを受け取ります。
+    - `async execute(message: string): Promise<string>`: 新しいコミットを作成し、そのSHAを返します。
+    - `private async buildTreeFromIndex(entries: Array<IndexEntry>): Promise<string>`: インデックスエントリから階層的なTree構造を構築します。
+    - `private buildDirectoryTree(entries: Array<IndexEntry>): TreeNode`: ディレクトリツリー構造を構築します。
+    - `private async createTreeObject(node: TreeNode): Promise<string>`: TreeNodeからTreeオブジェクトを作成し、オブジェクトDBに保存します。
+
+- **`logService.ts`**（実装済み）
 
   - **役割**: `log`コマンドのビジネスロジックに特化した専用サービスです。
   - **主なメソッド**:
     - `constructor(objectRepo, referenceRepo, logger?)`: 必要なRepositoryインスタンスを受け取ります。
-    - `execute(): Promise<void>`: コミット履歴を表示します。
+    - `async execute(): Promise<void>`: コミット履歴を表示します。
     - `private formatCommit(commit: Commit, sha: string): string`: コミット情報を整形します。
-    - `private collectCommitHistory(startSha: string): Promise<Array<{sha: string, commit: Commit}>>`: コミット履歴を収集します。
-
-- **`statusService.ts`**（未実装）
-  - **役割**: ファイルの状態分析というドメインサービスです。
-  - **主なメソッド**:
-    - `getFileStatus(filepath: string): Promise<WorkdirStatus>`: 指定ファイルのステータス (`untracked`など) を返します。
+    - `private async collectCommitHistory(startSha: string): Promise<Array<{sha: string, commit: Commit}>>`: コミット履歴を収集します。
+    - `async getCommitStats(sha: string): Promise<{totalCommits: number, authors: Set<string>, dateRange: {earliest: Date, latest: Date}}>`: コミット履歴の統計情報を取得します（将来の拡張用）。
 
 ### `src/commands/`
 
-- **`add.ts` / `commit.ts` / `log.ts`**
+- **`add.ts` / `commit.ts` / `log.ts`**（実装済み）
   - **役割**: CLIと各専用サービスクラスのメソッド呼び出しの橋渡しをします。
-  - **設計方針**: 各コマンドは対応するサービス（例：`log`コマンド → `LogService`）を呼び出します。
+  - **設計方針**: 各コマンドは対応するサービス（例：`add`コマンド → `AddService`、`commit`コマンド → `CommitService`、`log`コマンド → `LogService`）を呼び出します。
   - **主な要素**:
-    - `export async function addCommand(files: string[]): Promise<void>`
-    - `export async function commitCommand(message: string): Promise<void>`
-    - `export async function logCommand(): Promise<void>`
+    - `export async function addCommand(files: string[]): Promise<void>`: `AddService.create()`でサービスを初期化し、`execute()`を呼び出します。
+    - `export async function commitCommand(message: string): Promise<void>`: 必要なRepositoryを直接インスタンス化し、`CommitService`を生成して実行します。
+    - `export async function logCommand(): Promise<void>`: 必要なRepositoryを直接インスタンス化し、`LogService`を生成して実行します。
 
 ### `src/utils/`
 
@@ -216,44 +228,50 @@ src/
 
 ## 5. シーケンス解説 (Command Execution Flow)
 
-### `my-git add <file>` の実行フロー（実装計画）
+### `my-git add <file>` の実行フロー
 
-`my-git add README.md` が実行された際の、主要なメソッド間のデータの流れです。
+`my-git add README.md` または `my-git add src/` が実行された際の、主要なメソッド間のデータの流れです。
 
 1.  **`commands/add.ts -> addCommand(files)`**
 
-    - **受け取り**: `files: string[]` (例: `['README.md']`)
-    - **処理**: `AddService`のインスタンスを作成し、`addService.execute(files)` を呼び出します。
+    - **受け取り**: `files: string[]` (例: `['README.md']` または `['src/']`)
+    - **処理**: `AddService.create()`でサービスインスタンスを作成し、`addService.execute(files)` を呼び出します。
 
-2.  **`services/AddService.ts -> execute(files)`**（実装予定）
+2.  **`services/addService.ts -> execute(files)`**
     - **処理**:
-      1.  各ファイルの存在確認とワーキングディレクトリからの相対パス計算を行います。
-      2.  ファイル内容を読み取り、`Blob`オブジェクトを作成します。
-      3.  `objectRepo.write(blob)` でBlobオブジェクトをオブジェクトDBに保存し、SHAを取得します。
-      4.  ファイルの統計情報（`fs.Stats`）を取得します。
-      5.  `indexRepo.add(filepath, sha, stats)` でインデックスにエントリを追加します。
-      6.  `indexRepo.write()` でインデックスファイルを更新します。
+      1.  引数の検証を行います（`validateArguments()`）。
+      2.  各ファイル/ディレクトリに対して処理を実行：
+          - `.git`以下のパスは自動的にスキップします。
+          - ディレクトリの場合は`collectFilesRecursively()`で再帰的にファイルを収集します。
+          - ファイルの場合は`processFile()`で個別処理を行います。
+      3.  `processFile()`内で：
+          - ファイル内容を読み取り、`Blob`オブジェクトを作成します。
+          - `objectRepo.write(blob)`でBlobオブジェクトをオブジェクトDBに保存し、SHAを取得します。
+          - ファイルの統計情報（`fs.Stats`）を取得します。
+      4.  `updateIndexFromResults()`で処理結果をもとにインデックスを一括更新します。
+      5.  `indexRepo.write()`でインデックスファイルを永続化します。
     - **→ 返り値**: `Promise<void>`
 
-### `my-git commit <message>` の実行フロー（実装計画）
+### `my-git commit <message>` の実行フロー
 
 `my-git commit "Initial commit"` が実行された際のフローです。
 
 1.  **`commands/commit.ts -> commitCommand(message)`**
 
     - **受け取り**: `message: string` (例: `"Initial commit"`)
-    - **処理**: `CommitService`のインスタンスを作成し、`commitService.execute(message)` を呼び出します。
+    - **処理**: 必要なRepository（IndexRepository、ObjectRepository、ReferenceRepository、ConfigRepository）を直接インスタンス化し、`CommitService`を作成して `commitService.execute(message)` を呼び出します。
 
-2.  **`services/CommitService.ts -> execute(message)`**（実装予定）
+2.  **`services/commitService.ts -> execute(message)`**
     - **処理**:
-      1.  `indexRepo.getAllEntries()` でインデックスから全エントリを取得します。
-      2.  インデックスエントリからディレクトリ構造を構築し、`Tree`オブジェクトを作成します。
-      3.  `objectRepo.write(tree)` で各TreeオブジェクトをオブジェクトDBに保存し、ルートツリーのSHAを取得します。
-      4.  `refRepo.resolveHead()` で現在のHEADコミット（親コミット）のSHAを取得します。
-      5.  `configRepo.getUserConfig()` で作者・コミッター情報を取得します。
-      6.  `Commit`オブジェクトを作成し、必要な情報（ツリーSHA、親コミットSHA、作者情報、メッセージ）を設定します。
-      7.  `objectRepo.write(commit)` でCommitオブジェクトをオブジェクトDBに保存し、コミットSHAを取得します。
-      8.  `refRepo.updateHead(commitSha)` でHEADが指すブランチの参照を新しいコミットに更新します。
+      1.  `indexRepo.getAllEntries()`でインデックスから全エントリを取得します。
+      2.  `buildTreeFromIndex(entries)`でインデックスエントリから階層的なTree構造を構築：
+          - `buildDirectoryTree()`でディレクトリツリー構造を構築します。
+          - `createTreeObject()`で各TreeノードからTreeオブジェクトを作成し、オブジェクトDBに保存します。
+      3.  `referenceRepo.resolveHead()`で現在のHEADコミット（親コミット）のSHAを取得します。
+      4.  `configRepo.getUserConfig()`で作者・コミッター情報を取得します。
+      5.  `Commit`オブジェクトを作成し、必要な情報（ツリーSHA、親コミットSHA、作者情報、メッセージ）を設定します。
+      6.  `objectRepo.write(commit)`でCommitオブジェクトをオブジェクトDBに保存し、コミットSHAを取得します。
+      7.  `referenceRepo.updateHead(commitSha)`でHEADが指すブランチの参照を新しいコミットに更新します。
     - **→ 返り値**: `Promise<string>` (新しいコミットのSHA)
 
 ### `my-git log` の実行フロー
