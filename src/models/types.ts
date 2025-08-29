@@ -60,7 +60,6 @@ export interface FileCategorization {
   untracked: Array<string>;
   /** 作業ディレクトリに存在せずindexに存在するファイル */
   deleted: Array<string>;
-  /** ワーキングディレクトリのファイル状態を表す型 */
 }
 
 /** ディレクトリ階層を表現するTreeNodeインターフェース */
