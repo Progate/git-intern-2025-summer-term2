@@ -63,9 +63,9 @@ E2Eテストは、実際のユーザーの使い方と同じようにコマン�
      - Git操作: `git init` → コミット作成後、`.git/HEAD`ファイルを手動削除
      - テスト内容: リポジトリが破損した状態でのエラーハンドリングを確認
 
-3. **境界値**
+3. **境界値テスト**
 
-   - **マージコミット（複数の親を持つコミット）**
+   - **マージコミット（複数の親を持つコミット）** ※現在コメントアウト中
      - Git操作: `git init` → 初期コミット → `git checkout -b feature` → featureブランチでコミット → `git checkout master` → `git merge feature --no-ff`
      - テスト内容: マージコミットを含む履歴が正しく表示されることを確認
    - **作者名に特殊文字が含まれる場合**
@@ -88,7 +88,19 @@ E2Eテストは、実際のユーザーの使い方と同じようにコマン�
      - Git操作: `git init` → ユーザー設定 → 複数ファイル作成・`git add .` → `mygit commit <message>`
      - テスト内容: 複数ファイルがステージングされた状態でコミットが正しく作成され、全ファイルがコミットに含まれることを確認
 
-2. **エラー系**
+2. **階層構造**
+
+   - **単一階層サブディレクトリのコミット作成**
+     - Git操作: `git init` → ユーザー設定 → `src/main.js`と`README.md`作成・`git add .` → `mygit commit <message>`
+     - テスト内容: サブディレクトリを含む階層構造でコミットが正しく作成され、`git ls-tree -r HEAD`で階層が確認できることを検証
+   - **深い階層構造のコミット作成**
+     - Git操作: `git init` → ユーザー設定 → `src/components/ui/Button.js`等の深い階層ファイル作成・`git add .` → `mygit commit <message>`
+     - テスト内容: 3階層以上の深い構造でコミットが正しく作成され、全てのファイルが適切に追跡されることを確認
+   - **Git標準コマンドとの互換性確認**
+     - Git操作: `git init` → ユーザー設定 → 混在構造（フラット+階層）のファイル作成・`git add .` → `mygit commit <message>`
+     - テスト内容: `git ls-tree`, `git show --name-status`での表示が正しく、ディレクトリが`040000 tree`として表現されることを確認
+
+3. **エラー系**
 
    - **空のコミットメッセージを指定した場合**
      - Git操作: `git init` → ユーザー設定 → ファイル作成・`git add .`
@@ -110,15 +122,20 @@ E2Eテストは、実際のユーザーの使い方と同じようにコマン�
 
 ### 個別テスト実行
 
-```bash
+````bash
 # 特定のテストファイルを実行
 npm test tests/e2e/log.e2e.test.ts
 npm test tests/e2e/commit.e2e.test.ts
 
 # 特定のテストケースを実行（Node.js test runnerではテストケース指定は--grep使用）
+```bash
+# 特殊文字をエスケープして実行
 node --import tsx --test tests/e2e/log.e2e.test.ts --grep "複数のコミット履歴を表示"
-node --import tsx --test tests/e2e/commit.e2e.test.ts --grep "should create commit with single file"
-```
+node --import tsx --test tests/e2e/commit.e2e.test.ts --grep "should create commit with single file in flat structure"
+node --import tsx --test tests/e2e/commit.e2e.test.ts --grep "should create commit with single level subdirectory"
+````
+
+````
 
 ### 全E2Eテスト実行
 
@@ -128,7 +145,7 @@ npm run test:e2e
 
 # または直接実行
 node --import tsx --test tests/e2e/**/*.test.ts
-```
+````
 
 ### 詳細ログ付き実行
 

@@ -27,6 +27,17 @@ describe("mygit commit E2E tests", () => {
     }
   };
 
+  // Helper function to create test file structure
+  const createTestFileStructure = (structure: Record<string, string>): void => {
+    for (const [filePath, content] of Object.entries(structure)) {
+      const dir = path.dirname(filePath);
+      if (dir !== "." && !fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(filePath, content);
+    }
+  };
+
   describe("正常系", () => {
     it("should create commit with single file in flat structure", () => {
       try {
@@ -169,6 +180,160 @@ describe("mygit commit E2E tests", () => {
             stdio: "pipe",
           });
         }, "Missing user config should cause error");
+      } finally {
+        teardownTest();
+      }
+    });
+  });
+
+  describe("階層構造", () => {
+    it("should create commit with single level subdirectory", () => {
+      try {
+        setupTest();
+
+        // テストファイル構造作成
+        createTestFileStructure({
+          "src/main.js": "console.log('Hello World');",
+          "README.md": "# Test Project\n\nWith subdirectory.",
+        });
+
+        // git addでステージング
+        execSync("git add .", { stdio: "pipe" });
+
+        // mygit commitを実行
+        const mygitPath = path.join(originalCwd, "bin", "main.mjs");
+        execSync(`node "${mygitPath}" commit "Add project structure"`, {
+          stdio: "pipe",
+        });
+
+        // Git標準コマンドでの確認（階層構造の検証）
+        const lsTreeOutput = execSync("git ls-tree -r HEAD", {
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+
+        assert(
+          lsTreeOutput.includes("src/main.js"),
+          "Nested file should be tracked",
+        );
+        assert(
+          lsTreeOutput.includes("README.md"),
+          "Root file should be tracked",
+        );
+
+        // ディレクトリ構造の確認
+        const showTreeOutput = execSync("git ls-tree HEAD", {
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+        assert(
+          showTreeOutput.includes("040000 tree") &&
+            showTreeOutput.includes("src"),
+          "src directory should be present as tree object",
+        );
+      } finally {
+        teardownTest();
+      }
+    });
+
+    it("should create commit with deep nested structure", () => {
+      try {
+        setupTest();
+
+        // 深い階層構造を作成
+        createTestFileStructure({
+          "src/components/ui/Button.js": "export const Button = () => {};",
+          "src/utils/helpers/math.js": "export const add = (a, b) => a + b;",
+          "tests/unit/math.test.js": "// Math tests",
+          "package.json": '{"name": "test-project"}',
+        });
+
+        execSync("git add .", { stdio: "pipe" });
+
+        const mygitPath = path.join(originalCwd, "bin", "main.mjs");
+        execSync(`node "${mygitPath}" commit "Add deep structure"`, {
+          stdio: "pipe",
+        });
+
+        // 深い階層が正しく記録されているか確認
+        const lsTreeOutput = execSync("git ls-tree -r HEAD", {
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+
+        assert(
+          lsTreeOutput.includes("src/components/ui/Button.js"),
+          "Deep nested file should be tracked",
+        );
+        assert(
+          lsTreeOutput.includes("src/utils/helpers/math.js"),
+          "Deep nested file should be tracked",
+        );
+        assert(
+          lsTreeOutput.includes("tests/unit/math.test.js"),
+          "Test file should be tracked",
+        );
+      } finally {
+        teardownTest();
+      }
+    });
+
+    it("should be compatible with standard git commands", () => {
+      try {
+        setupTest();
+
+        // 混在構造を作成
+        createTestFileStructure({
+          "README.md": "# Mixed Structure Project",
+          "src/index.js": "// Main entry point",
+          "src/lib/utils.js": "// Utility functions",
+          "docs/api.md": "# API Documentation",
+          "package.json": '{"name": "mixed-project"}',
+        });
+
+        execSync("git add .", { stdio: "pipe" });
+
+        const mygitPath = path.join(originalCwd, "bin", "main.mjs");
+        execSync(`node "${mygitPath}" commit "Mixed structure commit"`, {
+          stdio: "pipe",
+        });
+
+        // git showでコミット詳細を確認
+        const showOutput = execSync("git show --name-status HEAD", {
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+
+        // 全ファイルが正しく追加されているか確認
+        const expectedFiles = [
+          "README.md",
+          "src/index.js",
+          "src/lib/utils.js",
+          "docs/api.md",
+          "package.json",
+        ];
+
+        for (const file of expectedFiles) {
+          assert(showOutput.includes(file), `File ${file} should be in commit`);
+        }
+
+        // git ls-tree で階層構造を確認
+        const rootTreeOutput = execSync("git ls-tree HEAD", {
+          encoding: "utf8",
+          stdio: "pipe",
+        });
+
+        // ディレクトリが tree オブジェクトとして表示されることを確認
+        assert(
+          rootTreeOutput.includes("040000 tree") &&
+            rootTreeOutput.includes("src"),
+          "src directory should be tree object",
+        );
+        assert(
+          rootTreeOutput.includes("040000 tree") &&
+            rootTreeOutput.includes("docs"),
+          "docs directory should be tree object",
+        );
       } finally {
         teardownTest();
       }
