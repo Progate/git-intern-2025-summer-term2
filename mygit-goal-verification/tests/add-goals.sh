@@ -104,6 +104,11 @@ fi
 echo "Test 1-5: ステージ取り消し・再追加の動作"
 
 # Goal: mygit add した後に git restore --staged, git commit, mygit add で元に戻せる
+# 最初にコミットを作成（git restore --staged を使うためにHEADが必要）
+git config user.email "test@example.com"
+git config user.name "Test User"
+git commit -m "Initial commit" > /dev/null 2>&1
+
 echo "modified content" > README.md
 mygit add README.md
 
