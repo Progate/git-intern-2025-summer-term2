@@ -2,11 +2,20 @@ import * as fs from "fs/promises";
 import * as path from "path";
 
 import { Blob } from "../models/blob.js";
-import { FileCategorization } from "../models/types.js";
 import { IndexRepository } from "../repositories/indexRepository.js";
 import { ObjectRepository } from "../repositories/objectRepository.js";
 import { findGitDirectory } from "../utils/gitUtils.js";
 import { Logger, defaultLogger } from "../utils/logger.js";
+
+/**
+ * ファイル処理結果を格納する型
+ */
+interface FileProcessingResult {
+  filePath: string;
+  operation: "add" | "update" | "delete";
+  sha?: string;
+  stats?: import("fs").Stats;
+}
 
 /**
  * addコマンドのビジネスロジックを実装するサービスクラス
@@ -60,7 +69,7 @@ export class AddService {
   }
 
   /**
-   * addコマンドのメイン処理
+   * addコマンドのメイン処理（ストリーミング処理版）
    * @param files 追加対象のファイルパス配列
    */
   async execute(files: Array<string>): Promise<void> {
@@ -69,19 +78,28 @@ export class AddService {
     // 引数の検証
     this.validateArguments(files);
 
-    // ファイルの分類
-    const categorizedFiles = await this.categorizeFiles(files);
+    // ファイルを順次処理し、結果を蓄積
+    const processingResults: Array<FileProcessingResult> = [];
 
-    // blobオブジェクトの作成（tracking / untrackedファイル）
-    const blobResults = await this.createBlobObjects([
-      ...categorizedFiles.tracking,
-      ...categorizedFiles.untracked,
-    ]);
+    for (const file of files) {
+      try {
+        const result = await this.processFile(file);
+        if (result) {
+          processingResults.push(result);
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to process file '${file}': ${errorMessage}`);
+      }
+    }
 
-    // インデックスの更新
-    await this.updateIndex(categorizedFiles, blobResults);
+    // インデックスを一括更新
+    await this.updateIndexFromResults(processingResults);
 
-    this.logger.info("Add operation completed successfully");
+    this.logger.info(
+      `Add operation completed successfully. Processed ${processingResults.length.toString()} files.`,
+    );
   }
 
   /**
@@ -95,46 +113,112 @@ export class AddService {
   }
 
   /**
-   * ファイルを tracking/untracked/deleted に分類
-   * @param files ファイルパス配列
-   * @returns 分類されたファイル情報
+   * 単一ファイルを処理（分類、blob作成、結果生成）
+   * @param file ファイルパス
+   * @returns 処理結果、削除対象ファイルの場合はundefined
    */
-  private async categorizeFiles(
-    files: Array<string>,
-  ): Promise<FileCategorization> {
-    const tracking: Array<string> = [];
-    const untracked: Array<string> = [];
-    const deleted: Array<string> = [];
+  private async processFile(
+    file: string,
+  ): Promise<FileProcessingResult | undefined> {
+    // ファイルパスを正規化
+    const normalizedPath = this.normalizePath(file);
 
-    for (const file of files) {
-      // ファイルパスを正規化（workDirからの相対パスに変換）
-      const normalizedPath = this.normalizePath(file);
+    // ファイルの存在確認
+    const fileExists = await this.fileExists(normalizedPath);
 
-      // ファイルの存在確認
-      const fileExists = await this.fileExists(normalizedPath);
+    // インデックスでの存在確認
+    const indexEntry = this.indexRepo.getEntry(normalizedPath);
+    const inIndex = indexEntry !== undefined;
 
-      // インデックスでの存在確認
-      const indexEntry = this.indexRepo.getEntry(normalizedPath);
-      const inIndex = indexEntry !== undefined;
-
-      // 分類ロジック
-      if (fileExists && inIndex) {
-        tracking.push(normalizedPath);
-      } else if (fileExists && !inIndex) {
-        untracked.push(normalizedPath);
-      } else if (!fileExists && inIndex) {
-        deleted.push(normalizedPath);
-      } else {
-        // ファイルも存在せず、インデックスにもない場合はエラー
-        throw new Error(`pathspec '${file}' did not match any files`);
-      }
+    // 分類判定とそれに応じた処理
+    if (!fileExists && !inIndex) {
+      // ファイルも存在せず、インデックスにもない場合はエラー
+      throw new Error(`pathspec '${file}' did not match any files`);
     }
 
-    this.logger.info(
-      `Categorized files - tracking: ${tracking.length.toString()}, untracked: ${untracked.length.toString()}, deleted: ${deleted.length.toString()}`,
+    if (!fileExists && inIndex) {
+      // deleted: インデックスから削除
+      this.logger.debug(`File marked for deletion: ${normalizedPath}`);
+      return {
+        filePath: normalizedPath,
+        operation: "delete",
+      };
+    }
+
+    // ファイルが存在する場合（tracking または untracked）
+    const absolutePath = path.resolve(this.workDir, normalizedPath);
+    const content = await fs.readFile(absolutePath);
+    const stats = await fs.stat(absolutePath);
+
+    // Blobオブジェクトを作成
+    const blob = new Blob(content);
+    const sha = await this.objectRepo.write(blob);
+
+    const operation = inIndex ? "update" : "add";
+    this.logger.debug(
+      `File processed for ${operation}: ${normalizedPath} -> ${sha}`,
     );
 
-    return { tracking, untracked, deleted };
+    return {
+      filePath: normalizedPath,
+      operation,
+      sha,
+      stats,
+    };
+  }
+
+  /**
+   * 処理結果からインデックスを一括更新
+   * @param results ファイル処理結果の配列
+   */
+  private async updateIndexFromResults(
+    results: Array<FileProcessingResult>,
+  ): Promise<void> {
+    try {
+      for (const result of results) {
+        switch (result.operation) {
+          case "add":
+          case "update":
+            if (!result.sha || !result.stats) {
+              throw new Error(
+                `Missing SHA or stats for file: ${result.filePath}`,
+              );
+            }
+            this.indexRepo.add(result.filePath, result.sha, result.stats);
+            this.logger.debug(
+              `${result.operation} index entry for ${result.filePath}: ${result.sha}`,
+            );
+            break;
+
+          case "delete":
+            this.indexRepo.remove(result.filePath);
+            this.logger.debug(`Removed index entry for ${result.filePath}`);
+            break;
+
+          default:
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            throw new Error(`Unknown operation: ${result.operation}`);
+        }
+      }
+
+      // インデックスファイルを保存
+      await this.indexRepo.write();
+
+      const addCount = results.filter(
+        (r) => r.operation === "add" || r.operation === "update",
+      ).length;
+      const deleteCount = results.filter(
+        (r) => r.operation === "delete",
+      ).length;
+
+      this.logger.info(
+        `Updated index with ${addCount.toString()} additions/updates and ${deleteCount.toString()} deletions`,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to update index: ${errorMessage}`);
+    }
   }
 
   /**
@@ -167,117 +251,6 @@ export class AddService {
       return stats.isFile();
     } catch {
       return false;
-    }
-  }
-
-  /**
-   * blobオブジェクトを作成
-   * @param files ファイルパス配列
-   * @returns ファイルパスとSHA-1のマップ
-   */
-  private async createBlobObjects(
-    files: Array<string>,
-  ): Promise<Map<string, string>> {
-    const results = new Map<string, string>();
-
-    for (const filePath of files) {
-      try {
-        // ファイルの内容を読み取り
-        const absolutePath = path.isAbsolute(filePath)
-          ? filePath
-          : path.join(this.workDir, filePath);
-
-        const content = await fs.readFile(absolutePath);
-
-        // Blobオブジェクトを作成
-        const blob = new Blob(content);
-
-        // オブジェクトストアに書き込み
-        const sha = await this.objectRepo.write(blob);
-
-        // 相対パスで結果を保存
-        const relativePath = this.normalizePath(filePath);
-        results.set(relativePath, sha);
-
-        this.logger.debug(`Created blob object for ${relativePath}: ${sha}`);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `Failed to create blob for file '${filePath}': ${errorMessage}`,
-        );
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * インデックスを更新
-   * @param categorizedFiles 分類されたファイル情報
-   * @param blobResults ファイルパスとSHA-1のマップ
-   */
-  private async updateIndex(
-    categorizedFiles: FileCategorization,
-    blobResults: Map<string, string>,
-  ): Promise<void> {
-    try {
-      // 追跡されているファイルを追加または更新
-      for (const filePath of categorizedFiles.tracking) {
-        const sha = blobResults.get(filePath);
-        if (!sha) {
-          throw new Error(`SHA not found for file: ${filePath}`);
-        }
-
-        // ファイルの統計情報を取得
-        const absolutePath = path.isAbsolute(filePath)
-          ? filePath
-          : path.join(this.workDir, filePath);
-
-        const stats = await fs.stat(absolutePath);
-
-        // インデックスエントリを追加/更新
-        this.indexRepo.add(filePath, sha, stats);
-
-        this.logger.debug(`Updated index entry for ${filePath}: ${sha}`);
-      }
-
-      // 追跡されていないファイルを追加
-      for (const filePath of categorizedFiles.untracked) {
-        const sha = blobResults.get(filePath);
-        if (!sha) {
-          throw new Error(`SHA not found for file: ${filePath}`);
-        }
-
-        // ファイルの統計情報を取得
-        const absolutePath = path.isAbsolute(filePath)
-          ? filePath
-          : path.join(this.workDir, filePath);
-
-        const stats = await fs.stat(absolutePath);
-
-        // インデックスエントリを追加
-        this.indexRepo.add(filePath, sha, stats);
-
-        this.logger.debug(`Added index entry for ${filePath}: ${sha}`);
-      }
-
-      // 削除されたファイルをインデックスから除去
-      for (const filePath of categorizedFiles.deleted) {
-        this.indexRepo.remove(filePath);
-        this.logger.debug(`Removed index entry for ${filePath}`);
-      }
-
-      // インデックスファイルを保存
-      await this.indexRepo.write();
-
-      this.logger.info(
-        `Updated index with ${(categorizedFiles.tracking.length + categorizedFiles.untracked.length).toString()} additions and ${categorizedFiles.deleted.length.toString()} deletions`,
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to update index: ${errorMessage}`);
     }
   }
 }
