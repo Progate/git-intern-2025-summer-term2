@@ -11,6 +11,10 @@ cd commit-test
 # Gitリポジトリを初期化
 git init > /dev/null 2>&1
 
+# mygit commit の動作に必要なユーザー設定
+git config user.email "test@example.com"
+git config user.name "Test User"
+
 echo "Test 2-1: コミット後のgit log形式表示"
 
 # Goal: mygit commit 後に標準出力で git log 形式のコミット情報が表示

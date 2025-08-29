@@ -13,6 +13,10 @@ echo "Scenario 1: 単一ファイルの基本フロー"
 # Gitリポジトリを初期化
 git init > /dev/null 2>&1
 
+# mygit commit の動作に必要なユーザー設定
+git config user.email "test@example.com"
+git config user.name "Test User"
+
 # 単一ファイルを作成
 echo "Hello, Git World!" > hello.txt
 

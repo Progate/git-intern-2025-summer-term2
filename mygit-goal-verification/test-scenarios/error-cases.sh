@@ -13,6 +13,10 @@ cd error-test
 # Gitリポジトリを初期化
 git init > /dev/null 2>&1
 
+# mygit commit の動作に必要なユーザー設定
+git config user.email "test@example.com"
+git config user.name "Test User"
+
 # エラーケース: 存在しないファイルのadd
 echo "存在しないファイルの追加を試行:"
 

@@ -13,6 +13,10 @@ cd compat-test
 # Gitリポジトリを初期化
 git init > /dev/null 2>&1
 
+# mygit commit の動作に必要なユーザー設定
+git config user.email "test@example.com"
+git config user.name "Test User"
+
 # mygitでコミット作成
 echo "Content created by mygit" > mygit-file.txt
 echo "Another file from mygit" > mygit-file2.txt

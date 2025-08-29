@@ -13,6 +13,10 @@ cd edge-test
 # Gitリポジトリを初期化
 git init > /dev/null 2>&1
 
+# mygit commit の動作に必要なユーザー設定
+git config user.email "test@example.com"
+git config user.name "Test User"
+
 # 初期状態のインデックス内容を記録
 initial_files=$(git ls-files | wc -l)
 echo "初期インデックスファイル数: $initial_files"

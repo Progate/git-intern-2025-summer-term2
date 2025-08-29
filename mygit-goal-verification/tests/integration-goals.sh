@@ -11,6 +11,10 @@ cd integration-test
 # Gitリポジトリを初期化
 git init > /dev/null 2>&1
 
+# mygit commit の動作に必要なユーザー設定
+git config user.email "test@example.com"
+git config user.name "Test User"
+
 echo "Test 3-1: 完全なadd→commit→log ワークフロー"
 
 # 複数ファイルを作成
