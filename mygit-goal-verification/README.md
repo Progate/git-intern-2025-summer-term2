@@ -13,14 +13,16 @@
 
 ## 実行方法
 
+> **注意**: すべてのコマンドはプロジェクトルートディレクトリ（`git-intern-2025-summer-term2/`）から実行してください。
+
 ### クイックスタート
 
 ```bash
-# 1. テスト環境準備
+# 1. テスト環境準備（プロジェクトルートから実行）
 ./mygit-goal-verification/prepare-test.sh
 
 # 2. Dockerテスト実行
-cd /home/ry/project/git-intern-2025-summer-term2/mygit-goal-verification
+cd mygit-goal-verification
 docker-compose up --build
 
 # 3. 結果確認
@@ -34,19 +36,19 @@ cat results/goal-verification-report.md
 1. プロジェクトがビルドされていることを確認：
 
    ```bash
-   cd /home/ry/project/git-intern-2025-summer-term2
+   # プロジェクトルートから実行
    npm run build
    ```
 
 2. mygitバイナリが実行可能であることを確認：
    ```bash
-   chmod +x /home/ry/project/git-intern-2025-summer-term2/bin/main.mjs
+   chmod +x bin/main.mjs
    ```
 
 ### Dockerテストの実行
 
 ```bash
-cd /home/ry/project/git-intern-2025-summer-term2/mygit-goal-verification
+cd mygit-goal-verification
 docker-compose up --build
 ```
 
@@ -55,10 +57,10 @@ docker-compose up --build
 Dockerを使わずに個別にテストを実行することも可能です：
 
 ```bash
-cd /home/ry/project/git-intern-2025-summer-term2/mygit-goal-verification
+cd mygit-goal-verification
 
 # PATH に mygit を追加
-export PATH="/home/ry/project/git-intern-2025-summer-term2/bin:$PATH"
+export PATH="$(pwd)/../bin:$PATH"
 
 # 個別テストスクリプトを実行
 ./tests/add-goals.sh
@@ -127,18 +129,17 @@ export PATH="/home/ry/project/git-intern-2025-summer-term2/bin:$PATH"
 ### mygitコマンドが見つからない場合
 
 ```bash
-# mygitバイナリの実行権限を確認
-ls -la /home/ry/project/git-intern-2025-summer-term2/bin/main.mjs
+# mygitバイナリの実行権限を確認（プロジェクトルートから実行）
+ls -la bin/main.mjs
 
 # 実行権限を付与
-chmod +x /home/ry/project/git-intern-2025-summer-term2/bin/main.mjs
+chmod +x bin/main.mjs
 ```
 
 ### Node.jsの依存関係エラー
 
 ```bash
-# プロジェクトディレクトリでnpm install
-cd /home/ry/project/git-intern-2025-summer-term2
+# プロジェクトルートでnpm install
 npm install
 npm run build
 ```
