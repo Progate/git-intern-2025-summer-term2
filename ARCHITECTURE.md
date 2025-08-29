@@ -36,19 +36,18 @@ src/
 │   ├── constants.ts           # Git index関連の定数
 │   └── types.ts               # 共有される型定義
 ├── repositories/              # データ永続化層
-│   ├── objectRepository.ts
-│   ├── indexRepository.ts
-│   ├── referenceRepository.ts
+│   ├── objectRepository.ts    # Gitオブジェクト(.git/objects)の読み書き
+│   ├── indexRepository.ts     # Gitインデックス(.git/index)の読み書き
+│   ├── referenceRepository.ts # Git参照(.git/HEAD, refs/)の読み書き
 │   └── configRepository.ts    # 設定ファイル(.git/config)の読み書き
 ├── services/                  # アプリケーション/ビジネスロジック層
 │   ├── addService.ts          # addコマンドの専用ビジネスロジック（実装済み）
 │   ├── commitService.ts       # commitコマンドの専用ビジネスロジック（実装済み）
-│   ├── logService.ts          # logコマンドの専用ビジネスロジック（実装済み）
-│   └── statusService.ts       # 状態分析などのドメインサービス（未実装）
+│   └── logService.ts          # logコマンドの専用ビジネスロジック（実装済み）
 ├── commands/                  # UI層
-│   ├── add.ts
-│   ├── commit.ts
-│   └── log.ts
+│   ├── add.ts                 # addコマンドの実装
+│   ├── commit.ts              # commitコマンドの実装
+│   └── log.ts                 # logコマンドの実装
 └── utils/                     # 共通ユーティリティ
     ├── logger.ts              # ログ機能
     └── gitUtils.ts            # Git関連のユーティリティ
@@ -86,10 +85,6 @@ src/
       - `signature: string`: ファイル署名（"DIRC"）
       - `version: number`: バージョン番号
       - `entryCount: number`: エントリ数
-    - `interface FileCategorization`: addコマンドでのファイル分類結果
-      - `tracking: Array<string>`: 作業ディレクトリに存在してindexに存在するファイル
-      - `untracked: Array<string>`: 作業ディレクトリに存在してindexに存在しないファイル
-      - `deleted: Array<string>`: 作業ディレクトリに存在せずindexに存在するファイル
     - `interface TreeNode`: ディレクトリ階層を表現するインターフェース
       - `name: string`: ディレクトリ/ファイル名
       - `children: Map<string, TreeNode>`: 子ノード（ディレクトリの場合）
@@ -203,12 +198,6 @@ src/
     - `private formatCommit(commit: Commit, sha: string): string`: コミット情報を整形します。
     - `private async collectCommitHistory(startSha: string): Promise<Array<{sha: string, commit: Commit}>>`: コミット履歴を収集します。
     - `async getCommitStats(sha: string): Promise<{totalCommits: number, authors: Set<string>, dateRange: {earliest: Date, latest: Date}}>`: コミット履歴の統計情報を取得します（将来の拡張用）。
-
-- **`statusService.ts`**（未実装）
-  - **役割**: ファイルの状態分析というドメインサービスです。
-  - **現状**: 空ファイルとして存在していますが、実装はされていません。
-  - **計画中のメソッド**:
-    - `getFileStatus(filepath: string): Promise<WorkdirStatus>`: 指定ファイルのステータス (`untracked`など) を返します。
 
 ### `src/commands/`
 
