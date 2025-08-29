@@ -226,4 +226,160 @@ describe("AddService", () => {
       assert(indexRepo.getEntry("file3.txt"), "file3.txt should be in index");
     });
   });
+
+  describe("Directory processing", () => {
+    it("should add all files in a directory recursively", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // ディレクトリ構造を作成
+      const subDir = path.join(tempDir, "subdir");
+      const nestedDir = path.join(subDir, "nested");
+      await fs.mkdir(subDir, { recursive: true });
+      await fs.mkdir(nestedDir, { recursive: true });
+
+      // ファイルを各ディレクトリに配置
+      await fs.writeFile(path.join(tempDir, "root.txt"), "root content");
+      await fs.writeFile(path.join(subDir, "sub.txt"), "sub content");
+      await fs.writeFile(path.join(nestedDir, "nested.txt"), "nested content");
+
+      // ディレクトリを指定してadd
+      await service.execute(["subdir"]);
+
+      const indexRepo = (service as any).indexRepo;
+
+      // サブディレクトリ内のファイルがインデックスに追加されたことを確認
+      assert(
+        indexRepo.getEntry("subdir/sub.txt"),
+        "subdir/sub.txt should be in index",
+      );
+      assert(
+        indexRepo.getEntry("subdir/nested/nested.txt"),
+        "subdir/nested/nested.txt should be in index",
+      );
+
+      // ルートファイルは追加されていないことを確認
+      assert(
+        !indexRepo.getEntry("root.txt"),
+        "root.txt should not be in index",
+      );
+    });
+
+    it("should add all files when using current directory (.)", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // ファイルとディレクトリ構造を作成
+      await fs.writeFile(path.join(tempDir, "root1.txt"), "root1 content");
+      await fs.writeFile(path.join(tempDir, "root2.txt"), "root2 content");
+
+      const subDir = path.join(tempDir, "subdir");
+      await fs.mkdir(subDir, { recursive: true });
+      await fs.writeFile(path.join(subDir, "sub.txt"), "sub content");
+
+      // カレントディレクトリ全体をadd
+      await service.execute(["."]);
+
+      const indexRepo = (service as any).indexRepo;
+
+      // 全てのファイルがインデックスに追加されたことを確認
+      assert(indexRepo.getEntry("root1.txt"), "root1.txt should be in index");
+      assert(indexRepo.getEntry("root2.txt"), "root2.txt should be in index");
+      assert(
+        indexRepo.getEntry("subdir/sub.txt"),
+        "subdir/sub.txt should be in index",
+      );
+    });
+
+    it("should exclude .git directory", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // .git内にファイルを作成（テスト用）
+      await fs.writeFile(path.join(gitDir, "config"), "git config");
+
+      // 通常ファイルも作成
+      await fs.writeFile(path.join(tempDir, "normal.txt"), "normal content");
+
+      // カレントディレクトリ全体をadd
+      await service.execute(["."]);
+
+      const indexRepo = (service as any).indexRepo;
+
+      // 通常ファイルは追加される
+      assert(indexRepo.getEntry("normal.txt"), "normal.txt should be in index");
+
+      // .git内のファイルは追加されない
+      assert(
+        !indexRepo.getEntry(".git/config"),
+        ".git/config should not be in index",
+      );
+    });
+
+    it("should handle mixed file and directory arguments", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // ファイルとディレクトリを作成
+      await fs.writeFile(path.join(tempDir, "single.txt"), "single content");
+
+      const subDir = path.join(tempDir, "subdir");
+      await fs.mkdir(subDir, { recursive: true });
+      await fs.writeFile(path.join(subDir, "sub.txt"), "sub content");
+
+      // ファイルとディレクトリを混在指定
+      await service.execute(["single.txt", "subdir"]);
+
+      const indexRepo = (service as any).indexRepo;
+
+      // 両方ともインデックスに追加されたことを確認
+      assert(indexRepo.getEntry("single.txt"), "single.txt should be in index");
+      assert(
+        indexRepo.getEntry("subdir/sub.txt"),
+        "subdir/sub.txt should be in index",
+      );
+    });
+
+    it("should throw error for non-existent directory", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // 存在しないディレクトリを指定
+      await assert.rejects(
+        async () => {
+          await service.execute(["non-existent-dir"]);
+        },
+        /Failed to process 'non-existent-dir'/,
+        "Should throw error for non-existent directory",
+      );
+    });
+
+    it("should handle empty directory gracefully", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // 空のディレクトリを作成
+      const emptyDir = path.join(tempDir, "empty");
+      await fs.mkdir(emptyDir, { recursive: true });
+
+      // 空ディレクトリを指定してadd（エラーにならずに正常完了）
+      await service.execute(["empty"]);
+
+      // 処理が正常に完了することを確認
+      assert(true, "Empty directory processing should succeed");
+    });
+
+    it("should automatically skip .git files and directories", async () => {
+      const service = await AddService.create(tempDir, mockLogger);
+
+      // 通常ファイルと.git関連ファイルを作成
+      await fs.writeFile(path.join(tempDir, "normal.txt"), "normal content");
+
+      // .git関連のパスを引数に含める
+      await service.execute([".git/config", "normal.txt", ".git"]);
+
+      const indexRepo = (service as any).indexRepo;
+
+      // 通常ファイルのみがインデックスに追加されることを確認
+      assert(indexRepo.getEntry("normal.txt"), "normal.txt should be in index");
+      assert(
+        !indexRepo.getEntry(".git/config"),
+        ".git/config should not be in index",
+      );
+    });
+  });
 });
