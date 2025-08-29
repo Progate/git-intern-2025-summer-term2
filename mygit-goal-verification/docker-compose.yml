@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  mygit-test:
+    build:
+      context: ..
+      dockerfile: mygit-goal-verification/docker/Dockerfile
+    volumes:
+      - ../bin/main.mjs:/home/testuser/bin/main.mjs:ro # mygitバイナリファイルをマウント
+      - ../dist:/home/testuser/dist:ro # ビルド済みJSファイルをマウント
+      - ../node_modules:/home/testuser/node_modules:ro # Node.js依存関係をマウント
+      - ../package.json:/home/testuser/package.json:ro # ES modules設定のためにpackage.jsonをマウント
+      - ./results:/home/testuser/results:rw
+    environment:
+      - PATH=/home/testuser/bin:$PATH
+    working_dir: /home/testuser
+    command: bash tests/goal-verification.sh
