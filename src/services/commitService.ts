@@ -180,10 +180,12 @@ export class CommitService {
   private async createTreeObject(node: TreeNode): Promise<string> {
     const treeEntries = [];
 
-    // 子ノードを名前順でソート（Git仕様準拠）
-    const sortedChildren = Array.from(node.children.entries()).sort((a, b) =>
-      a[0].localeCompare(b[0]),
-    );
+    // 子ノードを名前順でソート（Git仕様準拠：バイナリ順）
+    const sortedChildren = Array.from(node.children.entries()).sort((a, b) => {
+      if (a[0] < b[0]) return -1;
+      if (a[0] > b[0]) return 1;
+      return 0;
+    });
 
     for (const [, child] of sortedChildren) {
       if (child.type === "file" && child.entry) {
