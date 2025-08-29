@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+# set -e を削除して、エラーが起きても続行するように変更
 
 echo "=== mygit ゴール達成確認テスト ==="
 echo "開始日時: $(date)"
@@ -63,20 +63,20 @@ echo "mygitの実行可能性をチェック..."
 if ! command -v mygit &> /dev/null; then
     echo "❌ mygitコマンドが見つかりません"
     record_test_result "mygit実行可能性チェック" "FAIL" "mygitコマンドが見つかりません"
-    exit 1
+    # exit 1 を削除して継続するように変更
 else
     echo "✅ mygitコマンドが見つかりました"
     record_test_result "mygit実行可能性チェック" "PASS"
 fi
 
-# 各テストを実行
-run_test "tests/add-goals.sh" "mygit add ゴール検証"
-run_test "tests/commit-goals.sh" "mygit commit ゴール検証"
-run_test "tests/integration-goals.sh" "統合ワークフロー検証"
-run_test "test-scenarios/basic-add-commit.sh" "基本的なadd→commitフロー"
-run_test "test-scenarios/git-compatibility.sh" "本家Git互換性"
-run_test "test-scenarios/error-cases.sh" "エラーケース"
-run_test "test-scenarios/edge-cases.sh" "エッジケース"
+# 各テストを実行（エラーが起きても継続）
+run_test "tests/add-goals.sh" "mygit add ゴール検証" || true
+run_test "tests/commit-goals.sh" "mygit commit ゴール検証" || true
+run_test "tests/integration-goals.sh" "統合ワークフロー検証" || true
+run_test "test-scenarios/basic-add-commit.sh" "基本的なadd→commitフロー" || true
+run_test "test-scenarios/git-compatibility.sh" "本家Git互換性" || true
+run_test "test-scenarios/error-cases.sh" "エラーケース" || true
+run_test "test-scenarios/edge-cases.sh" "エッジケース" || true
 
 # 結果サマリーをレポートに追加
 {
