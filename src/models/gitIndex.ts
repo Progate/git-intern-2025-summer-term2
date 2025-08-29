@@ -109,8 +109,8 @@ export class Index {
     _objectId: string,
     _stats: fs.Stats,
   ): IndexEntry {
-    // Git Index flags を正しく構成
-    const flags = Index.createFlags(_path.length);
+    // Git Index flags を正しく構成（UTF-8バイト長を使用）
+    const flags = Index.createFlags(Buffer.byteLength(_path, 'utf8'));
 
     return {
       ctime: Index.timestampToFileTime(_stats.ctime),
@@ -247,8 +247,8 @@ export class Index {
    * @returns エントリのバイナリデータ（パディング含む）
    */
   private serializeEntry(entry: IndexEntry): Buffer {
-    // パディングサイズを計算
-    const paddedSize = Index.calculatePaddedSize(entry.path.length);
+    // パディングサイズを計算（UTF-8バイト長を使用）
+    const paddedSize = Index.calculatePaddedSize(Buffer.byteLength(entry.path, 'utf8'));
     const buffer = Buffer.alloc(paddedSize); // ゼロで初期化
     let offset = 0;
 
@@ -369,8 +369,8 @@ export class Index {
       const entry = Index.parseEntry(contentData, offset);
       index._entries.set(entry.path, entry);
 
-      // 次のエントリのオフセットを計算（8バイト境界にアライン）
-      const entrySize = INDEX_ENTRY_SIZE.FIXED_SIZE + entry.path.length + 1; // +1 for null terminator
+      // 次のエントリのオフセットを計算（8バイト境界にアライン、UTF-8バイト長を使用）
+      const entrySize = INDEX_ENTRY_SIZE.FIXED_SIZE + Buffer.byteLength(entry.path, 'utf8') + 1; // +1 for null terminator
       const paddedSize =
         Math.ceil(entrySize / INDEX_ENTRY_SIZE.ALIGNMENT) *
         INDEX_ENTRY_SIZE.ALIGNMENT;
