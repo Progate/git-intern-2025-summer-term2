@@ -83,14 +83,47 @@ export class AddService {
 
     for (const file of files) {
       try {
-        const result = await this.processFile(file);
-        if (result) {
-          processingResults.push(result);
+        // .git以下のファイル/ディレクトリは自動的にスキップ
+        if (this.isUnderGitDirectory(file)) {
+          this.logger.debug(`Skipping .git path: ${file}`);
+          continue;
+        }
+
+        // ディレクトリかファイルかを判定
+        if (await this.isDirectory(file)) {
+          this.logger.debug(`Processing directory: ${file}`);
+
+          // ディレクトリ内のファイルを再帰的に収集
+          const filesInDir = await this.collectFilesRecursively(file);
+          this.logger.info(
+            `Found ${filesInDir.length} files in directory: ${file}`,
+          );
+
+          // 収集したファイルを順次処理
+          for (const fileInDir of filesInDir) {
+            try {
+              const result = await this.processFile(fileInDir);
+              if (result) {
+                processingResults.push(result);
+              }
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              this.logger.warn(`Skipping file '${fileInDir}': ${errorMessage}`);
+              // ディレクトリ処理では個別ファイルエラーは警告として続行
+            }
+          }
+        } else {
+          // 通常ファイルの処理
+          const result = await this.processFile(file);
+          if (result) {
+            processingResults.push(result);
+          }
         }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to process file '${file}': ${errorMessage}`);
+        throw new Error(`Failed to process '${file}': ${errorMessage}`);
       }
     }
 
@@ -110,6 +143,17 @@ export class AddService {
     if (files.length === 0) {
       throw new Error("No files specified");
     }
+  }
+
+  /**
+   * パスが.git以下のファイル/ディレクトリかどうかをチェック
+   * @param filePath ファイルパス
+   * @returns .git以下の場合true
+   */
+  private isUnderGitDirectory(filePath: string): boolean {
+    const normalizedPath = this.normalizePath(filePath);
+    // .gitで始まるか、.git/を含むかをチェック
+    return normalizedPath === ".git" || normalizedPath.startsWith(".git/");
   }
 
   /**
@@ -252,5 +296,63 @@ export class AddService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * パスがディレクトリかどうかをチェック
+   * @param filePath ファイルパス
+   * @returns ディレクトリの場合true
+   */
+  private async isDirectory(filePath: string): Promise<boolean> {
+    try {
+      const fullPath = path.resolve(this.workDir, filePath);
+      const stats = await fs.stat(fullPath);
+      return stats.isDirectory();
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * ディレクトリ内のファイルを再帰的に収集
+   * @param dirPath ディレクトリパス
+   * @returns ファイルパスの配列
+   */
+  private async collectFilesRecursively(
+    dirPath: string,
+  ): Promise<Array<string>> {
+    const result: Array<string> = [];
+    const fullDirPath = path.resolve(this.workDir, dirPath);
+
+    try {
+      const entries = await fs.readdir(fullDirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const entryPath = path.join(dirPath, entry.name);
+
+        if (entry.isDirectory()) {
+          // .gitディレクトリは除外
+          if (entry.name === ".git") {
+            this.logger.debug(`Skipping .git directory: ${entryPath}`);
+            continue;
+          }
+
+          // 再帰的にサブディレクトリを処理
+          const subFiles = await this.collectFilesRecursively(entryPath);
+          result.push(...subFiles);
+        } else if (entry.isFile()) {
+          // 通常ファイルのみ追加
+          result.push(entryPath);
+          this.logger.debug(`Found file: ${entryPath}`);
+        }
+        // シンボリックリンクやその他のエントリは無視
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to read directory '${dirPath}': ${errorMessage}`);
+    }
+
+    return result;
   }
 }

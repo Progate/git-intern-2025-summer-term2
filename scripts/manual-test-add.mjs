@@ -131,7 +131,124 @@ function runAllTests() {
       }
     });
 
-    // テスト5: 実際のGitとの比較
+    // テスト5: ディレクトリ追加（新機能）
+    runTest("Directory addition", () => {
+      // ディレクトリ構造を作成
+      fs.mkdirSync("testdir", { recursive: true });
+      fs.mkdirSync("testdir/subdir", { recursive: true });
+      fs.writeFileSync("testdir/file1.txt", "Directory content 1");
+      fs.writeFileSync("testdir/file2.txt", "Directory content 2");
+      fs.writeFileSync("testdir/subdir/nested.txt", "Nested content");
+
+      const output = execSync("mygit add testdir", { encoding: "utf8" });
+      log(`Output: ${output.trim()}`);
+
+      const status = execSync("git status --porcelain", { encoding: "utf8" });
+      if (
+        !status.includes("A  testdir/file1.txt") ||
+        !status.includes("A  testdir/file2.txt") ||
+        !status.includes("A  testdir/subdir/nested.txt")
+      ) {
+        throw new Error("Directory files were not staged properly");
+      }
+    });
+
+    // テスト6: カレントディレクトリ全体追加（.）
+    runTest("Current directory addition (.)", () => {
+      // 新しいファイルを作成
+      fs.writeFileSync("root1.txt", "Root content 1");
+      fs.writeFileSync("root2.txt", "Root content 2");
+
+      const output = execSync("mygit add .", { encoding: "utf8" });
+      log(`Output: ${output.trim()}`);
+
+      const status = execSync("git status --porcelain", { encoding: "utf8" });
+      if (
+        !status.includes("A  root1.txt") ||
+        !status.includes("A  root2.txt")
+      ) {
+        throw new Error("Current directory files were not staged properly");
+      }
+    });
+
+    // テスト7: .gitディレクトリ除外確認
+    runTest("Exclude .git directory", () => {
+      // .git内にテストファイルを作成（通常はしないが、テストのため）
+      fs.writeFileSync(".git/test-file", "Should not be added");
+      fs.writeFileSync("normal.txt", "Normal file");
+
+      const output = execSync("mygit add .", { encoding: "utf8" });
+      log(`Output: ${output.trim()}`);
+
+      const status = execSync("git status --porcelain", { encoding: "utf8" });
+      if (status.includes(".git/test-file")) {
+        throw new Error(".git directory was not properly excluded");
+      }
+      if (!status.includes("A  normal.txt")) {
+        throw new Error("Normal file was not staged");
+      }
+    });
+
+    // テスト8: 混在引数（ファイルとディレクトリ）
+    runTest("Mixed file and directory arguments", () => {
+      fs.writeFileSync("single.txt", "Single file");
+      fs.mkdirSync("mixdir", { recursive: true });
+      fs.writeFileSync("mixdir/mixed.txt", "Mixed content");
+
+      const output = execSync("mygit add single.txt mixdir", {
+        encoding: "utf8",
+      });
+      log(`Output: ${output.trim()}`);
+
+      const status = execSync("git status --porcelain", { encoding: "utf8" });
+      if (
+        !status.includes("A  single.txt") ||
+        !status.includes("A  mixdir/mixed.txt")
+      ) {
+        throw new Error("Mixed arguments were not staged properly");
+      }
+    });
+
+    // テスト9: 空ディレクトリ処理
+    runTest("Empty directory handling", () => {
+      fs.mkdirSync("emptydir", { recursive: true });
+
+      // 空ディレクトリを指定（エラーにならずに正常完了すべき）
+      const output = execSync("mygit add emptydir", { encoding: "utf8" });
+      log(`Output: ${output.trim()}`);
+
+      // 空ディレクトリは何もステージされないが、エラーにならない
+      // これは正常な動作
+    });
+
+    // テスト10: 実際のGitとの比較（ディレクトリ）
+    runTest("Directory comparison with real git", () => {
+      fs.mkdirSync("gitcomp", { recursive: true });
+      fs.writeFileSync("gitcomp/comp1.txt", "Git comparison 1");
+      fs.writeFileSync("gitcomp/comp2.txt", "Git comparison 2");
+
+      // mygit addで追加
+      execSync("mygit add gitcomp", { stdio: "pipe" });
+      const mygitIndex = execSync("git ls-files --stage gitcomp/", {
+        encoding: "utf8",
+      });
+
+      // gitでリセットして再追加
+      execSync("git reset", { stdio: "pipe" });
+      execSync("git add gitcomp", { stdio: "pipe" });
+      const gitIndex = execSync("git ls-files --stage gitcomp/", {
+        encoding: "utf8",
+      });
+
+      if (mygitIndex.trim() !== gitIndex.trim()) {
+        throw new Error(
+          `Directory index mismatch:\nmygit:\n${mygitIndex}\ngit:\n${gitIndex}`,
+        );
+      }
+      log("Directory index matches git");
+    });
+
+    // テスト11: 実際のGitとの比較（元のテスト）
     runTest("Comparison with real git", () => {
       fs.writeFileSync("compare.txt", "Comparison test");
 
@@ -156,10 +273,33 @@ function runAllTests() {
       log(`SHA match: ${mygitSha}`);
     });
 
+    // テスト15: 直接指定された.gitファイルのスキップ
+    runTest("Skip .git files when directly specified", () => {
+      fs.writeFileSync("normal.txt", "Normal file content");
+
+      // .gitファイルと通常ファイルを混在指定
+      const output = execSync("mygit add .git/config normal.txt .git", {
+        encoding: "utf8",
+      });
+      log(`Output: ${output.trim()}`);
+
+      const status = execSync("git status --porcelain", { encoding: "utf8" });
+
+      // 通常ファイルのみがステージされることを確認
+      if (!status.includes("A  normal.txt")) {
+        throw new Error("Normal file was not staged");
+      }
+
+      // .gitファイルはステージされていないことを確認
+      if (status.includes(".git/config")) {
+        throw new Error(".git files should be automatically skipped");
+      }
+    });
+
     // エラーケースのテスト
     log("\n--- Error Cases ---");
 
-    // テスト6: 存在しないファイル
+    // テスト12: 存在しないファイル
     runTest("Non-existing file error", () => {
       try {
         execSync("mygit add non-existing.txt", { stdio: "pipe" });
@@ -176,7 +316,21 @@ function runAllTests() {
       }
     });
 
-    // テスト7: 引数なし
+    // テスト13: 存在しないディレクトリ
+    runTest("Non-existing directory error", () => {
+      try {
+        execSync("mygit add non-existing-dir", { stdio: "pipe" });
+        throw new Error("Should have failed for non-existing directory");
+      } catch (err) {
+        if (!err.message.includes("Failed to process 'non-existing-dir'")) {
+          throw new Error(
+            `Wrong error message for non-existing directory. Got: ${err.message}`,
+          );
+        }
+      }
+    });
+
+    // テスト14: 引数なし
     runTest("No arguments error", () => {
       try {
         execSync("mygit add", { stdio: "pipe" });

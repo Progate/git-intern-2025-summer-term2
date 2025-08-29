@@ -8,7 +8,7 @@ export const mygit = async (argv: Array<string>): Promise<void> => {
   const command = argv[2];
 
   // Git操作が必要なコマンドの場合、事前にGitディレクトリを確認
-  if (command === "log" || command === "commit") {
+  if (command === "log" || command === "commit" || command === "add") {
     const gitDir = await findGitDirectory();
     if (!gitDir) {
       console.error(
